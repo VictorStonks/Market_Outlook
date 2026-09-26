@@ -1,4 +1,4 @@
-"""Equities: stock price, normalised price, sector return and country return panels (yfinance) (DESIGN.md sections 4 and 11 step 9)."""
+"""Equities: stock price, normalised price, sector return, country return and forward P/E panels (yfinance) (DESIGN.md sections 4 and 11 step 9)."""
 import streamlit as st
 
 import panels
@@ -20,3 +20,4 @@ with left:
     panels.render_country_line_panel()
 with right:
     panels.render_country_table_panel()
+panels.render_ntm_pe_panel(lookback_years)  # full-width; the forward P/E is one stock's history, so it wants the width

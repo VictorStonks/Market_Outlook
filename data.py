@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import datetime as dt
 import io
+import json
 import logging
 import re
 import threading
@@ -410,6 +411,96 @@ def load_index_prices() -> tuple[pd.DataFrame, str | None]:
     return prices, f"Country index download failed; showing saved prices (latest observation {prices.index[-1]:%d %b %Y})."
 
 
+# ---------- Quarterly EPS for the forward P/E: yfinance, saved per ticker ----------
+
+# Fetched on demand (one stock at a time), not for all 500 upfront: Yahoo rate-limits bulk requests. Each stock's
+# reported EPS, current estimates and report lag are saved to cache/eps/<ticker>.json and reused for a day; a
+# failed fetch falls back to the saved file, like the price loaders. "Refresh data" also forces a re-fetch.
+EPS_DIR = Path(__file__).parent / "cache" / "eps"
+EPS_MAX_AGE = dt.timedelta(days=1)
+_EPS_HISTORY = 48                      # quarters of reported EPS to request (12Y)
+_EPS_ESTIMATE_KEYS = ("0q", "+1q", "0y", "+1y")
+_eps_force_after = 0.0                 # saved files older than this timestamp are re-fetched ("Refresh data")
+
+
+def _eps_path(ticker: str) -> Path:
+    return EPS_DIR / f"{re.sub(r'[^A-Za-z0-9._-]', '_', ticker)}.json"
+
+
+def _report_lag_days(ticker: yf.Ticker, report_dates: pd.DatetimeIndex) -> int:
+    """Median days from fiscal quarter end to report date, from the recent quarters Yahoo lists statements for."""
+    try:
+        ends = pd.DatetimeIndex(ticker.quarterly_income_stmt.columns).normalize()
+    except Exception:
+        return 35
+    lags = [(report_dates[report_dates >= e][0].normalize() - e).days for e in ends if (report_dates >= e).any()]
+    lags = [lag for lag in lags if 10 <= lag <= 100]
+    return int(pd.Series(lags).median()) if lags else 35
+
+
+def _fetch_eps(ticker: str) -> dict:
+    t = yf.Ticker(ticker)
+    dates = t.get_earnings_dates(limit=_EPS_HISTORY)
+    if dates is None or dates.empty:
+        raise ValueError("no earnings history")
+    dates = dates.sort_index()
+    dates.index = dates.index.tz_localize(None) if dates.index.tz is None else dates.index.tz_convert(None)
+    reported = dates["Reported EPS"].dropna()
+    est_table = t.earnings_estimate
+    estimates = {}
+    if est_table is not None and not est_table.empty:
+        estimates = {k: float(est_table.loc[k, "avg"]) for k in _EPS_ESTIMATE_KEYS
+                     if k in est_table.index and pd.notna(est_table.loc[k, "avg"])}
+    return {
+        "reported": {d.strftime("%Y-%m-%d"): float(v) for d, v in reported.items()},
+        "estimates": estimates, "lag_days": _report_lag_days(t, dates.index),
+        "fetched": dt.datetime.now().isoformat(timespec="seconds"),
+    }
+
+
+def _read_eps(ticker: str) -> dict | None:
+    try:
+        return json.loads(_eps_path(ticker).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+
+@st.cache_data(ttl=3600)
+def _load_eps_cached(ticker: str, force_after: float) -> tuple[dict | None, str | None]:
+    path = _eps_path(ticker)
+    fresh = path.exists() and path.stat().st_mtime > force_after and \
+        dt.datetime.now() - dt.datetime.fromtimestamp(path.stat().st_mtime) <= EPS_MAX_AGE
+    if fresh:
+        return _read_eps(ticker), None
+    error = None
+    for attempt in range(2):  # one retry, for Yahoo rate limits
+        try:
+            eps = _fetch_eps(ticker)
+            EPS_DIR.mkdir(parents=True, exist_ok=True)
+            tmp = path.with_suffix(".tmp")
+            tmp.write_text(json.dumps(eps), encoding="utf-8")
+            tmp.replace(path)
+            return eps, None
+        except Exception as exc:
+            error = exc
+            time.sleep(1.5)
+    log.warning("EPS fetch failed for %s: %s", ticker, error)
+    saved = _read_eps(ticker)
+    if saved is None:
+        return None, f"Fetch failed for {ticker} EPS; no saved data available."
+    return saved, f"Fetch failed for {ticker} EPS; showing saved data from {saved['fetched'][:10]}."
+
+
+def load_eps(ticker: str) -> tuple[pd.Series, dict[str, float], int, str | None]:
+    """Reported quarterly EPS (indexed by report date), Yahoo's current estimates, the report lag in days and a
+    notice; never raises. Empty series when nothing is available. Notice is None on success (DESIGN.md 5.4)."""
+    eps, notice = _load_eps_cached(ticker, _eps_force_after)
+    if not eps or not eps["reported"]:
+        return pd.Series(dtype=float), {}, 35, notice or f"Yahoo has no reported EPS for {ticker}."
+    reported = pd.Series(eps["reported"]).rename(lambda d: pd.Timestamp(d)).sort_index()
+    return reported, eps["estimates"], int(eps["lag_days"]), notice
+
+
 @st.cache_data(ttl=3600)
 def refreshed_at() -> pd.Timestamp:
     """SGT wall-clock time this cache generation was created; resets when the cache is cleared."""
@@ -420,6 +511,8 @@ def refresh() -> None:
     st.cache_data.clear()
     _price_state["force"] = True  # the next price load re-downloads, whatever the age of the saved files
     _index_state["force"] = True
+    global _eps_force_after
+    _eps_force_after = time.time()  # saved EPS files older than this are re-fetched on next use
 
 
 def moving_average(data: pd.Series, window: int) -> pd.Series:

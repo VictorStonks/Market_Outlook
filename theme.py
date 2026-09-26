@@ -292,20 +292,23 @@ def line_fig(
 
 
 def band_fig(
-    label: str, s: pd.Series, *, k: float = 1.0, unit: str = "", decimals: int = 2, height: int = 300,
+    label: str, s: pd.Series, *, k: float | Sequence[float] = 1.0, unit: str = "", decimals: int = 2,
+    height: int = 300,
 ) -> go.Figure:
-    """Series against its historical mean with a shaded +-k sigma band (replaces the two red lines)."""
+    """Series against its historical mean with shaded +-k sigma bands (replaces the two red lines). `k` may be
+    several multiples, e.g. (1, 2): each is one band at the same tint, so the inner band reads darker."""
     t = tokens()
     s = s.dropna()
     mu, sd = float(s.mean()), float(s.std())
     x = s.index
     fig = _base_fig(height, unit, decimals)
     fig.update_xaxes(tickformat="%b %y", hoverformat="%d %b %Y")
-    fig.add_trace(go.Scatter(x=x, y=[mu + k * sd] * len(x), mode="lines", line=dict(width=0),
-                             hoverinfo="skip", showlegend=False))
-    fig.add_trace(go.Scatter(x=x, y=[mu - k * sd] * len(x), mode="lines", line=dict(width=0),
-                             fill="tonexty", fillcolor=_rgba(t["muted"], 0.2),
-                             name=f"±{k:g}σ band", hoverinfo="skip"))
+    for band in sorted([k] if isinstance(k, (int, float)) else k, reverse=True):  # widest first, so it sits behind
+        fig.add_trace(go.Scatter(x=x, y=[mu + band * sd] * len(x), mode="lines", line=dict(width=0),
+                                 hoverinfo="skip", showlegend=False))
+        fig.add_trace(go.Scatter(x=x, y=[mu - band * sd] * len(x), mode="lines", line=dict(width=0),
+                                 fill="tonexty", fillcolor=_rgba(t["muted"], 0.2),
+                                 name=f"±{band:g}σ band", hoverinfo="skip"))
     fig.add_trace(go.Scatter(x=[x[0], x[-1]], y=[mu, mu], mode="lines",
                              line=dict(color=t["text2"], width=1.5, dash="dash"),
                              name=f"Mean ({fmt_num(mu, decimals, unit)})", hoverinfo="skip"))

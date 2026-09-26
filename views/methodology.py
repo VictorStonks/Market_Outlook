@@ -14,7 +14,7 @@ st.subheader("Data sources", anchor=False)
 st.markdown(
     "All charts use free public data. Macro, rates and credit series come from "
     "[FRED](https://fred.stlouisfed.org) (Federal Reserve Bank of St. Louis), which redistributes the "
-    "ICE BofA credit indices. Equity data will come from Yahoo Finance via yfinance once those pages are built."
+    "ICE BofA credit indices. Equity data comes from Yahoo Finance via yfinance."
 )
 rows = []
 for spec in specs.ALL_PANELS:
@@ -47,6 +47,23 @@ st.markdown(
     "top or bottom 2% of their range, and stale series.\n"
     f"- **Stale.** A series is flagged STALE when its latest observation is older than: {freq_rows}. "
     "These allow for normal publication lag and are heuristics."
+)
+
+st.subheader("Forward P/E (NTM), Equities page", anchor=False)
+st.markdown(
+    "Yahoo Finance publishes today's analyst estimates but not what analysts expected on past dates, so a true "
+    "historical forward P/E cannot be built from free data. The panel builds an approximation from scratch:\n"
+    "- **Denominator.** Next-12-month (NTM) EPS on each date: the next 365 days of quarterly EPS, each quarter "
+    "counted in proportion to the share of it inside the window, so it rolls forward daily rather than stepping "
+    "at each report. Quarters already reported use reported EPS; later ones use Yahoo's current estimates.\n"
+    "- **Numerator.** The daily split-adjusted close.\n"
+    "- **Hindsight.** Past multiples use the EPS that was later realized, not what analysts expected at the time, "
+    "so the history is a perfect-foresight P/E.\n"
+    "- **Estimates beyond the next two quarters** repeat the same quarter a year earlier, scaled by the expected "
+    "growth from this fiscal year to the next.\n"
+    "- **Negative EPS.** If NTM EPS is negative today, no chart is drawn. Earlier dates with negative NTM EPS "
+    "are left out of the line, the mean and the band.\n"
+    "- **Band.** Mean, ±1σ and ±2σ are computed over the loaded lookback window."
 )
 
 st.subheader("Conventions", anchor=False)

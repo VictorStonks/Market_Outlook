@@ -15,6 +15,7 @@ import countries
 import data
 import sectors
 import theme
+import valuation
 from takeaways import (ReturnsSummary, Summary, TakeawaySpec, summarise, summarise_country_returns,
                        summarise_returns, summarise_sector_returns, summarise_sector_table)
 
@@ -406,6 +407,105 @@ def render_normalised_panel(lookback_years: int, ma_window: int | None) -> None:
         if series:
             with st.expander("Raw data"):
                 st.dataframe(_raw_table(pd.concat({t: rebased[t] for t in cut}, axis=1), " index", 1), width="stretch")
+
+
+# ---------- Equities: forward P/E panel ----------
+
+PE_UNIT = "x"
+PE_DEFAULT = "AAPL"
+PE_TAKEAWAY = TakeawaySpec("", unit=PE_UNIT, decimals=1, freq="D", change_days=30, change_label="1M")
+PE_CAVEAT = ("Past multiples use the EPS later realized (hindsight), not what analysts expected at the time; "
+             "quarters not yet reported use Yahoo's current estimates. Reported EPS is usually on an adjusted "
+             "basis. Bands are the window mean ±1σ and ±2σ. See Methodology.")
+
+
+def _pe_frame(prices: pd.Series, reported: pd.Series, estimates: dict, lag_days: int):
+    """(quarters, NTM EPS on every price date, NTM P/E) for one stock, full saved history."""
+    quarters = valuation.build_quarters(reported, estimates, lag_days)
+    eps = valuation.ntm_eps(quarters, prices.dropna().index)
+    return quarters, eps, valuation.ntm_pe(prices, eps)
+
+
+@st.fragment
+def render_ntm_pe_panel(lookback_years: int) -> None:
+    """Forward (NTM) P/E of one S&P 500 stock over the sidebar lookback: daily close over time-weighted next-12-month
+    EPS, against its window mean and ±1σ band. A stock with negative NTM EPS gets a message instead of a chart."""
+    title, subtitle = "Forward P/E (NTM)", "x · daily close over next-12-month EPS (time-weighted) · daily"
+    with st.container(border=True):
+        head = st.container()  # filled after the control so the takeaway can use the loaded data
+        prices, ticker, available = _stock_picker_one("ntm_pe_sel")
+        sm, pe, notes, asof = None, pd.Series(dtype=float), [], None
+
+        if ticker:
+            with st.spinner(f"Loading {ticker} EPS…"):
+                reported, estimates, lag_days, notice = data.load_eps(ticker)
+            if notice:
+                st.warning(notice)
+            close = prices[ticker].dropna() if ticker in prices else pd.Series(dtype=float)
+            if not close.empty and not reported.empty:
+                quarters, eps, full_pe = _pe_frame(close, reported, estimates, lag_days)
+                asof = close.index[-1]
+                latest_eps = eps.iloc[-1]
+                if pd.notna(latest_eps) and latest_eps <= 0:
+                    with head:
+                        theme.panel_header(title, subtitle)
+                    st.info(f"{ticker} has negative expected earnings over the next 12 months "
+                            f"({theme.fmt_num(latest_eps, 2, ' USD')} per share), so a P/E multiple is not "
+                            "meaningful. This method is not appropriate for companies with negative EPS.")
+                    theme.panel_footer(STOCK_SOURCE, FREQ_NAMES["D"], asof, caveat=PE_CAVEAT)
+                    return
+                cutoff = pd.Timestamp.now() - pd.Timedelta(days=365 * lookback_years)
+                pe = full_pe.loc[full_pe.index >= cutoff]
+                if len(pe) >= 8:
+                    sm = summarise(pe, replace(PE_TAKEAWAY, label=f"{ticker} NTM P/E"))
+                in_window = close.index[close.index >= cutoff]
+                if len(in_window):
+                    dropped = int((~in_window.isin(pe.index)).sum())
+                    if dropped:
+                        notes.append(f"{dropped} trading days in the window are left out because NTM EPS was "
+                                     "negative or not covered by the EPS history.")
+                est_from = valuation.estimates_from(quarters)
+                if est_from is not None and not pe.empty and pe.index[-1] >= est_from:
+                    notes.append(f"From {max(est_from, pe.index[0]):%d %b %Y} the NTM EPS includes analyst "
+                                 "estimates.")
+                if not pe.empty and len(pe) >= 8 and pe.index[0] > in_window[0] + pd.Timedelta(days=30):
+                    notes.append(f"The chart starts {pe.index[0]:%d %b %Y}, the first date with a full year of EPS "
+                                 "ahead.")
+                eps_window = eps.reindex(pe.index)
+        with head:
+            theme.panel_header(title, subtitle, (sm.text if sm else NO_SUMMARY) if len(pe) else "")
+
+        if len(pe) >= 8:
+            theme.render(theme.band_fig(f"{ticker} NTM P/E", pe, k=(1, 2), unit=PE_UNIT, decimals=1), key="ntm_pe")
+        elif not available:
+            st.info("No stock prices available.")
+        elif not ticker:
+            st.info("Select a stock to plot.")
+        else:
+            st.info(f"Not enough EPS history to compute a forward P/E for {ticker} in this window.")
+        theme.panel_footer(STOCK_SOURCE, FREQ_NAMES["D"], asof or _asof(sm, {}), stale=bool(sm and sm.stale),
+                           caveat=" ".join([*notes, PE_CAVEAT]))
+        if len(pe) >= 8:
+            with st.expander("Raw data"):
+                raw = pd.DataFrame({"Close (USD)": close.reindex(pe.index), "NTM EPS (USD)": eps_window,
+                                    "NTM P/E (x)": pe})
+                st.dataframe(_raw_table(raw, "", 2), width="stretch")
+
+
+def _stock_picker_one(key: str) -> tuple[pd.DataFrame, str | None, bool]:
+    """Single-stock search box over the S&P 500 (ticker or company name). Returns (saved close prices, chosen
+    ticker or None, any stock available)."""
+    universe, universe_notice = data.load_universe()
+    prices, price_notice = data.load_prices("close")
+    _warn_all([n for n in (universe_notice, price_notice) if n])
+    listed = universe[universe["ticker"].isin(prices.columns)]
+    ticker_of = dict(zip(listed["label"], listed["ticker"]))
+    labels = list(ticker_of)
+    default = next((i for i, label in enumerate(labels) if ticker_of[label] == PE_DEFAULT), 0)
+    picked = st.selectbox("Search stock", labels, index=default if labels else None, key=key,
+                          placeholder="Ticker or company name",
+                          help="Type a ticker or company name. One stock at a time.")
+    return prices, ticker_of.get(picked), not listed.empty
 
 
 # ---------- Equities: sector return panels ----------
