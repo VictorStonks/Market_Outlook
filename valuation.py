@@ -91,3 +91,17 @@ def estimates_from(quarters: pd.DataFrame) -> pd.Timestamp | None:
     if quarters.empty or not quarters["estimated"].any():
         return None
     return quarters.index[~quarters["estimated"].to_numpy(dtype=bool)][-1] - pd.Timedelta(days=NTM_DAYS)
+
+
+def group_ntm_pe(prices: pd.DataFrame, eps: pd.DataFrame, shares: pd.Series) -> pd.DataFrame:
+    """Market-cap weighted NTM P/E of a group of stocks: total market cap over total NTM earnings, the way an index
+    P/E is quoted. On each date a stock counts only when its NTM EPS is positive and it has a price, so negative
+    earners are excluded from both sides. Weights use the given (today's) share counts, so past market caps are
+    approximate. Columns: `pe` and `n` (stocks counted); dates with no counted stock are dropped."""
+    cols = [c for c in eps.columns if c in prices.columns and c in shares.index]
+    px, e, sh = prices[cols], eps[cols].reindex(prices.index), shares[cols]
+    valid = e.gt(0) & px.notna()
+    cap = (px * sh).where(valid).sum(axis=1, min_count=1)
+    earnings = (e * sh).where(valid).sum(axis=1, min_count=1)
+    out = pd.DataFrame({"pe": cap / earnings, "n": valid.sum(axis=1)})
+    return out.dropna(subset=["pe"])

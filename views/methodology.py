@@ -66,6 +66,24 @@ st.markdown(
     "- **Band.** Mean, ±1σ and ±2σ are computed over the loaded lookback window."
 )
 
+st.subheader("Forward P/E vs sector and S&P 500", anchor=False)
+st.markdown(
+    "The comparison panel plots the same NTM P/E for one stock against the average of its GICS sector and of the "
+    "S&P 500. It has no historical mean or band.
+"
+    "- **Average.** Total market cap of the group divided by its total NTM earnings, the way an index P/E is "
+    "quoted, so large companies weigh more. It is not a mean or median of the stocks' P/Es.
+"
+    "- **Negative EPS.** A stock counts on a date only if its NTM EPS is positive, so loss-makers are left out "
+    "of both market cap and earnings. The footer says how many stocks the latest value counts.
+"
+    "- **Weights.** Today's share counts are used for the whole window, so past market caps are approximate. "
+    "The universe is today's S&P 500 constituents.
+"
+    "- **Data.** EPS for all constituents is downloaded once (a few minutes on the first run) and refreshed "
+    "weekly."
+)
+
 st.subheader("Conventions", anchor=False)
 st.markdown(
     "- **Dates.** Data as-of dates are observation dates. The refresh time under each page title is in "

@@ -204,3 +204,23 @@ def whats_changed(summaries: Mapping[str, Summary], *, move_z: float = 2.0, extr
         elif sm.percentile <= 100 - extreme_pct:
             lines.append(f"{name}: at the bottom of its loaded range ({_ordinal(round(sm.percentile))} percentile).")
     return lines
+
+
+def summarise_pe_comparison(label: str, level: float, others: Mapping[str, float], asof: pd.Timestamp,
+                            today: pd.Timestamp | None = None) -> ReturnsSummary:
+    """One sentence placing a stock's NTM P/E against the group averages shown (sector, S&P 500), as a % premium or
+    discount. `others` maps a name to its latest value; with none, it only states the level (DESIGN.md 8: describes,
+    never advises). `returns` holds the premium (%) per name."""
+    today = today or pd.Timestamp.today().normalize()
+    text = f"{label} NTM P/E is {fmt_num(level, 1, 'x')}"
+    premiums = {}
+    parts = []
+    for name, value in others.items():
+        premium = (level / value - 1) * 100
+        premiums[name] = premium
+        rel = "in line with" if round(abs(premium)) == 0 else \
+            f"{fmt_num(abs(premium), 0, '%')} {'above' if premium > 0 else 'below'}"
+        parts.append(f"{rel} {name} ({fmt_num(value, 1, 'x')})")
+    if parts:
+        text += ", " + " and ".join(parts)
+    return ReturnsSummary(premiums, asof, (today - asof).days > MAX_AGE_DAYS["D"], text + ".")

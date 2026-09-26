@@ -24,6 +24,7 @@ import yfinance as yf
 from fredapi import Fred
 
 import countries
+import valuation
 
 log = logging.getLogger(__name__)
 
@@ -413,14 +414,20 @@ def load_index_prices() -> tuple[pd.DataFrame, str | None]:
 
 # ---------- Quarterly EPS for the forward P/E: yfinance, saved per ticker ----------
 
-# Fetched on demand (one stock at a time), not for all 500 upfront: Yahoo rate-limits bulk requests. Each stock's
-# reported EPS, current estimates and report lag are saved to cache/eps/<ticker>.json and reused for a day; a
-# failed fetch falls back to the saved file, like the price loaders. "Refresh data" also forces a re-fetch.
+# Reported EPS, current estimates and report lag for each stock, saved to cache/eps/<ticker>.json and reused for a
+# week. A single stock is fetched on demand (forward P/E history chart); the sector and S&P 500 comparison needs
+# every constituent, so a bulk download fills all of them once, marked by cache/eps/_bulk.json (which stocks
+# failed). A failed fetch falls back to the saved file, like the price loaders. Like share counts, "Refresh data"
+# does not force EPS (the bulk download takes a few minutes); it refreshes weekly. Needs lxml.
 EPS_DIR = Path(__file__).parent / "cache" / "eps"
-EPS_MAX_AGE = dt.timedelta(days=1)
+EPS_BULK_FILE = EPS_DIR / "_bulk.json"
+EPS_MAX_AGE = dt.timedelta(days=7)
 _EPS_HISTORY = 48                      # quarters of reported EPS to request (12Y)
 _EPS_ESTIMATE_KEYS = ("0q", "+1q", "0y", "+1y")
-_eps_force_after = 0.0                 # saved files older than this timestamp are re-fetched ("Refresh data")
+_EPS_WORKERS = 6                       # parallel Yahoo requests; more risks rate limiting
+_MIN_EPS_TICKERS = 400                 # fewer successes than this is treated as a broken bulk download
+_eps_lock = threading.Lock()
+_eps_state: dict = {"force": False, "failed_at": None}
 
 
 def _eps_path(ticker: str) -> Path:
@@ -458,6 +465,31 @@ def _fetch_eps(ticker: str) -> dict:
     }
 
 
+def _fetch_and_save_eps(ticker: str) -> dict:
+    """Fetch one stock's EPS data (one retry, for Yahoo rate limits) and save it. Raises if both attempts fail."""
+    for attempt in range(2):
+        try:
+            eps = _fetch_eps(ticker)
+            break
+        except Exception:
+            if attempt == 1:
+                raise
+            time.sleep(1.5)
+    EPS_DIR.mkdir(parents=True, exist_ok=True)
+    path = _eps_path(ticker)
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(eps), encoding="utf-8")
+    for attempt in range(4):  # Windows can briefly lock the target (virus scanner, another reader)
+        try:
+            tmp.replace(path)
+            break
+        except PermissionError:
+            if attempt == 3:
+                raise
+            time.sleep(0.3)
+    return eps
+
+
 def _read_eps(ticker: str) -> dict | None:
     try:
         return json.loads(_eps_path(ticker).read_text(encoding="utf-8"))
@@ -466,25 +498,14 @@ def _read_eps(ticker: str) -> dict | None:
 
 
 @st.cache_data(ttl=3600)
-def _load_eps_cached(ticker: str, force_after: float) -> tuple[dict | None, str | None]:
+def _load_eps_cached(ticker: str) -> tuple[dict | None, str | None]:
     path = _eps_path(ticker)
-    fresh = path.exists() and path.stat().st_mtime > force_after and \
-        dt.datetime.now() - dt.datetime.fromtimestamp(path.stat().st_mtime) <= EPS_MAX_AGE
-    if fresh:
+    if path.exists() and dt.datetime.now() - dt.datetime.fromtimestamp(path.stat().st_mtime) <= EPS_MAX_AGE:
         return _read_eps(ticker), None
-    error = None
-    for attempt in range(2):  # one retry, for Yahoo rate limits
-        try:
-            eps = _fetch_eps(ticker)
-            EPS_DIR.mkdir(parents=True, exist_ok=True)
-            tmp = path.with_suffix(".tmp")
-            tmp.write_text(json.dumps(eps), encoding="utf-8")
-            tmp.replace(path)
-            return eps, None
-        except Exception as exc:
-            error = exc
-            time.sleep(1.5)
-    log.warning("EPS fetch failed for %s: %s", ticker, error)
+    try:
+        return _fetch_and_save_eps(ticker), None
+    except Exception as exc:
+        log.warning("EPS fetch failed for %s: %s", ticker, exc)
     saved = _read_eps(ticker)
     if saved is None:
         return None, f"Fetch failed for {ticker} EPS; no saved data available."
@@ -494,11 +515,78 @@ def _load_eps_cached(ticker: str, force_after: float) -> tuple[dict | None, str 
 def load_eps(ticker: str) -> tuple[pd.Series, dict[str, float], int, str | None]:
     """Reported quarterly EPS (indexed by report date), Yahoo's current estimates, the report lag in days and a
     notice; never raises. Empty series when nothing is available. Notice is None on success (DESIGN.md 5.4)."""
-    eps, notice = _load_eps_cached(ticker, _eps_force_after)
+    eps, notice = _load_eps_cached(ticker)
     if not eps or not eps["reported"]:
         return pd.Series(dtype=float), {}, 35, notice or f"Yahoo has no reported EPS for {ticker}."
     reported = pd.Series(eps["reported"]).rename(lambda d: pd.Timestamp(d)).sort_index()
     return reported, eps["estimates"], int(eps["lag_days"]), notice
+
+
+def _eps_bulk_current() -> bool:
+    return EPS_BULK_FILE.exists() and \
+        dt.datetime.now() - dt.datetime.fromtimestamp(EPS_BULK_FILE.stat().st_mtime) <= EPS_MAX_AGE
+
+
+def _download_and_save_eps_all() -> None:
+    universe, _ = load_universe()
+    if universe.empty:
+        raise ValueError("no S&P 500 list to download EPS for")
+
+    def fetch(ticker: str) -> tuple[str, bool]:
+        try:
+            _fetch_and_save_eps(ticker)
+            return ticker, True
+        except Exception as exc:
+            log.warning("EPS fetch failed for %s: %s", ticker, exc)
+            return ticker, False
+
+    with ThreadPoolExecutor(max_workers=_EPS_WORKERS) as pool:
+        results = list(pool.map(fetch, universe["ticker"].tolist()))
+    failed = sorted(t for t, ok in results if not ok)
+    if len(results) - len(failed) < _MIN_EPS_TICKERS:
+        raise ValueError(f"only {len(results) - len(failed)} tickers returned EPS")
+    tmp = EPS_BULK_FILE.with_suffix(".tmp")
+    tmp.write_text(json.dumps({"failed": failed}), encoding="utf-8")
+    tmp.replace(EPS_BULK_FILE)
+
+
+@st.cache_data
+def _build_ntm_eps(bulk_saved_at: float, price_saved_at: float) -> pd.DataFrame:
+    """NTM EPS on every price date for every stock with saved EPS (dates x tickers). The two timestamps are the
+    cache key, so a new bulk download or new prices rebuild it."""
+    prices = _read_prices("close", price_saved_at)
+    columns = {}
+    for path in EPS_DIR.glob("*.json"):
+        ticker = path.stem
+        if path.name.startswith("_") or ticker not in prices.columns:
+            continue
+        raw = _read_eps(ticker)
+        if not raw or not raw["reported"]:
+            continue
+        reported = pd.Series(raw["reported"]).rename(lambda d: pd.Timestamp(d)).sort_index()
+        quarters = valuation.build_quarters(reported, raw["estimates"], int(raw["lag_days"]))
+        if not quarters.empty:
+            columns[ticker] = valuation.ntm_eps(quarters, prices.index)
+    return pd.DataFrame(columns, index=prices.index)
+
+
+def load_ntm_eps() -> tuple[pd.DataFrame, list[str], str | None]:
+    """NTM EPS for every S&P 500 stock (dates x tickers), the tickers Yahoo had no EPS for, and a notice; never
+    raises. Empty frame when no bulk download has ever succeeded (a partial set of saved stocks would make a
+    sector average misleading). Notice is None unless a due download failed (DESIGN.md 5.4)."""
+    ok = _ensure_saved(_eps_state, _eps_lock, _eps_bulk_current, _download_and_save_eps_all, "EPS",
+                       "Downloading quarterly EPS for the S&P 500 (Yahoo Finance; the first run takes a few "
+                       "minutes)…")
+    try:
+        marker = json.loads(EPS_BULK_FILE.read_text(encoding="utf-8"))
+        eps = _build_ntm_eps(EPS_BULK_FILE.stat().st_mtime, PRICE_FILES["close"].stat().st_mtime)
+    except Exception as exc:  # no bulk download yet, or unreadable
+        log.warning("Saved EPS unusable: %s", exc)
+        return pd.DataFrame(), [], "EPS download failed; no saved EPS available."
+    if ok:
+        return eps, marker["failed"], None
+    saved = dt.datetime.fromtimestamp(EPS_BULK_FILE.stat().st_mtime)
+    return eps, marker["failed"], f"EPS download failed; showing saved EPS from {saved:%d %b %Y}."
 
 
 @st.cache_data(ttl=3600)
@@ -511,8 +599,6 @@ def refresh() -> None:
     st.cache_data.clear()
     _price_state["force"] = True  # the next price load re-downloads, whatever the age of the saved files
     _index_state["force"] = True
-    global _eps_force_after
-    _eps_force_after = time.time()  # saved EPS files older than this are re-fetched on next use
 
 
 def moving_average(data: pd.Series, window: int) -> pd.Series:
