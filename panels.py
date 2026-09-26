@@ -11,11 +11,12 @@ from dataclasses import dataclass, field, replace
 import pandas as pd
 import streamlit as st
 
+import countries
 import data
 import sectors
 import theme
-from takeaways import (ReturnsSummary, Summary, TakeawaySpec, summarise, summarise_returns,
-                       summarise_sector_returns, summarise_sector_table)
+from takeaways import (ReturnsSummary, Summary, TakeawaySpec, summarise, summarise_country_returns,
+                       summarise_returns, summarise_sector_returns, summarise_sector_table)
 
 FREQ_NAMES = {"D": "Daily", "W": "Weekly", "M": "Monthly", "Q": "Quarterly"}
 NO_SUMMARY = "Not enough history in the loaded window for a summary."
@@ -498,10 +499,10 @@ def render_sector_line_panel() -> None:
                 st.dataframe(_raw_table(pd.DataFrame(plot), "%", 1), width="stretch")
 
 
-def _table_timeframes_changed() -> None:
-    """Keep the "All" pill and the individual timeframe pills consistent with each other."""
-    key = "sector_tbl_tf"
-    new, prev = set(st.session_state[key] or []), set(st.session_state["sector_tbl_prev"])
+def _table_timeframes_changed(key: str, prev_key: str) -> None:
+    """Keep the "All" pill and the individual timeframe pills of a returns table consistent with each other.
+    `key` holds the pills' selection, `prev_key` the selection before this change."""
+    new, prev = set(st.session_state[key] or []), set(st.session_state[prev_key])
     every = set(sectors.TIMEFRAMES)
     if ALL_TIMEFRAMES in new and ALL_TIMEFRAMES not in prev:      # All switched on: select everything
         new = every | {ALL_TIMEFRAMES}
@@ -512,7 +513,7 @@ def _table_timeframes_changed() -> None:
     elif ALL_TIMEFRAMES not in new and every <= new:              # every timeframe picked by hand: All holds
         new.add(ALL_TIMEFRAMES)
     st.session_state[key] = [o for o in (ALL_TIMEFRAMES, *sectors.TIMEFRAMES) if o in new]
-    st.session_state["sector_tbl_prev"] = list(st.session_state[key])
+    st.session_state[prev_key] = list(st.session_state[key])
 
 
 @st.fragment
@@ -527,7 +528,8 @@ def render_sector_table_panel() -> None:
         head = st.container()
         universe, prices, shares, sector_of, available = _sector_inputs()
         st.pills("Timeframes", [ALL_TIMEFRAMES, *sectors.TIMEFRAMES], selection_mode="multi", key="sector_tbl_tf",
-                 on_change=_table_timeframes_changed, help="Pick one or more timeframes, or All.")
+                 on_change=_table_timeframes_changed, args=("sector_tbl_tf", "sector_tbl_prev"),
+                 help="Pick one or more timeframes, or All.")
         selected = [tf for tf in sectors.TIMEFRAMES if tf in (st.session_state["sector_tbl_tf"] or [])]
 
         sm, view = None, pd.DataFrame()
@@ -550,3 +552,107 @@ def render_sector_table_panel() -> None:
         _sector_footer(universe, prices, shares, prices.index[-1] if available else None, bool(sm and sm.stale),
                        "Gains use the up colour and losses the down colour; the darkest cell in each column is "
                        "that column's largest move.")
+
+
+# ---------- Equities: country return panels ----------
+
+def _country_inputs() -> tuple[pd.DataFrame, bool]:
+    """Load the saved country index closes (dates x country names), warning on any fallback."""
+    prices, notice = data.load_index_prices()
+    _warn_all([notice] if notice else [])
+    return prices, not prices.empty
+
+
+def _country_footer(asof, stale: bool, *notes: str) -> None:
+    theme.panel_footer(STOCK_SOURCE, FREQ_NAMES["D"], asof, stale=stale,
+                       caveat=" ".join(filter(None, [*notes, countries.disclaimer()])))
+
+
+@st.fragment
+def render_country_line_panel() -> None:
+    """Chosen countries' benchmark indices rebased to 100 on the start of a timeframe (1M to 12M), so different
+    index levels compare as % change (DESIGN.md 6.2 "Relative performance")."""
+    title = "Country returns"
+    subtitle = f"Index, start of timeframe = {countries.REBASE_TO:g} · local-currency price return · daily"
+    st.session_state.setdefault("country_line_tf", "3M")
+    with st.container(border=True):
+        head = st.container()  # filled after the controls so the takeaway can use the loaded data
+        prices, available = _country_inputs()
+        st.segmented_control("Timeframe", sectors.LINE_TIMEFRAMES, key="country_line_tf",
+                             on_change=_keep_selection, args=("country_line_tf", "3M"))
+        timeframe = st.session_state["country_line_tf"]
+        path = countries.paths(prices, timeframe) if available else pd.DataFrame()
+
+        picked = st.multiselect(
+            "Countries", [n for n in countries.NAMES if n in prices.columns],
+            default=[n for n in countries.DEFAULT_SELECTION if n in prices.columns],
+            max_selections=MAX_SECTOR_LINES, key="country_line_sel", placeholder="Choose countries",
+            help=f"Up to {MAX_SECTOR_LINES} countries. Each is one benchmark index (see the note below the chart).")
+        chosen = [n for n in countries.NAMES if n in picked and n in path.columns]
+        plot = {n: path[n] for n in chosen}
+        sm = None
+        if chosen:
+            final = path.iloc[-1]
+            sm = summarise_country_returns({n: final[n] - countries.REBASE_TO for n in chosen}, timeframe,
+                                           path.index[-1])
+        with head:
+            theme.panel_header(title, subtitle, sm.text if sm else "")
+
+        if chosen:
+            theme.render(theme.line_fig(plot, decimals=1, baseline=countries.REBASE_TO), key="country_line")
+        else:
+            st.info("Select at least one country to plot." if not path.empty else "No country index data available.")
+        _country_footer(None if path.empty else path.index[-1], bool(sm and sm.stale),
+                        f"Every line is 100 on {path.index[0]:%d %b %Y}." if not path.empty else "")
+        if chosen:
+            with st.expander("Raw data"):
+                st.dataframe(_raw_table(pd.DataFrame(plot), " index", 1), width="stretch")
+
+
+def _country_raw_csv(table: pd.DataFrame) -> bytes:
+    """Full returns table (every timeframe, all countries) with index name and ticker, for download."""
+    info = {c.name: (c.index, c.ticker) for c in countries.COUNTRIES}
+    raw = table.round(2)
+    raw.columns = [f"{tf} return (%)" for tf in raw.columns]
+    raw.insert(0, "Ticker", [info[n][1] for n in raw.index])
+    raw.insert(0, "Index", [info[n][0] for n in raw.index])
+    return raw.rename_axis("Country").to_csv().encode("utf-8")
+
+
+@st.fragment
+def render_country_table_panel() -> None:
+    """Every country's index return over the chosen timeframes (1D to 12M), each column shaded on its own scale
+    around zero, like the sector table; the full table can be downloaded as CSV."""
+    title = "Country returns by timeframe"
+    subtitle = "Index price return, local currency, % · daily · shaded per column"
+    st.session_state.setdefault("country_tbl_tf", [ALL_TIMEFRAMES, *sectors.TIMEFRAMES])
+    st.session_state.setdefault("country_tbl_prev", list(st.session_state["country_tbl_tf"]))
+    with st.container(border=True):
+        head = st.container()
+        prices, available = _country_inputs()
+        st.pills("Timeframes", [ALL_TIMEFRAMES, *sectors.TIMEFRAMES], selection_mode="multi", key="country_tbl_tf",
+                 on_change=_table_timeframes_changed, args=("country_tbl_tf", "country_tbl_prev"),
+                 help="Pick one or more timeframes, or All.")
+        selected = [tf for tf in sectors.TIMEFRAMES if tf in (st.session_state["country_tbl_tf"] or [])]
+
+        sm, view, table = None, pd.DataFrame(), pd.DataFrame()
+        if available:
+            table = countries.returns_table(prices)
+        if available and selected:
+            view = table[selected]
+            sm = summarise_sector_table(view, selected, prices.index[-1], noun="countries")
+            view = view.rename_axis("Country")
+        with head:
+            theme.panel_header(title, subtitle, sm.text if sm else "")
+
+        if not view.empty:
+            st.dataframe(theme.signed_heatmap(view, unit="", arrows=False), width="stretch", height="content")
+        else:
+            st.info("Select at least one timeframe." if available else "No country index data available.")
+        if available:
+            st.download_button("Download raw data (CSV)", _country_raw_csv(table), file_name="country_returns.csv",
+                               mime="text/csv", icon=":material/download:", key="country_tbl_download",
+                               help="Every country and timeframe, with the index name and Yahoo ticker.")
+        _country_footer(prices.index[-1] if available else None, bool(sm and sm.stale),
+                        "Gains use the up colour and losses the down colour; the darkest cell in each column is "
+                        "that column's largest move.")

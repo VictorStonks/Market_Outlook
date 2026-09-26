@@ -1,4 +1,4 @@
-"""Equities: stock price, normalised price and sector return panels (yfinance); index levels are still to come (DESIGN.md sections 4 and 11 step 9)."""
+"""Equities: stock price, normalised price, sector return and country return panels (yfinance) (DESIGN.md sections 4 and 11 step 9)."""
 import streamlit as st
 
 import panels
@@ -15,4 +15,8 @@ with left:
     panels.render_sector_line_panel()
 with right:
     panels.render_sector_table_panel()
-st.info("Not built yet: index levels (Yahoo Finance via yfinance).")
+left, right = st.columns(2)  # country panels also have their own timeframe pills
+with left:
+    panels.render_country_line_panel()
+with right:
+    panels.render_country_table_panel()

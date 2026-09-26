@@ -22,6 +22,8 @@ import streamlit as st
 import yfinance as yf
 from fredapi import Fred
 
+import countries
+
 log = logging.getLogger(__name__)
 
 SGT = ZoneInfo("Asia/Singapore")  # refresh times are stamped in SGT; data as-of dates are observation dates
@@ -361,6 +363,53 @@ def load_shares() -> tuple[pd.Series, str | None]:
     return shares, f"Share count download failed; showing saved share counts from {saved:%d %b %Y}."
 
 
+# ---------- Country index closes: yfinance, saved locally ----------
+
+# One benchmark index per country (see countries.COUNTRIES). Same save-and-fall-back pattern as the stock prices.
+# All indices are required: a download missing one is treated as broken and never saved over the file.
+INDEX_FILE = Path(__file__).parent / "cache" / "country_index_close.parquet"
+_index_lock = threading.Lock()
+_index_state: dict = {"force": False, "failed_at": None}
+
+
+def _index_current() -> bool:
+    return INDEX_FILE.exists() and dt.datetime.now() - dt.datetime.fromtimestamp(INDEX_FILE.stat().st_mtime) <= PRICE_MAX_AGE
+
+
+def _download_and_save_index() -> None:
+    raw = yf.download(list(countries.TICKERS), period=f"{PRICE_YEARS}y", interval="1d", auto_adjust=False,
+                      progress=False, threads=True)
+    close = raw["Close"].dropna(axis=1, how="all").sort_index().rename_axis(columns=None) if not raw.empty else raw
+    if missing := sorted(set(countries.TICKERS) - set(close.columns)):
+        raise ValueError(f"Yahoo returned no prices for {', '.join(missing)}")
+    frame = countries.drop_open_bars(countries.to_names(close))
+    INDEX_FILE.parent.mkdir(parents=True, exist_ok=True)
+    tmp = INDEX_FILE.with_suffix(".tmp")
+    frame.to_parquet(tmp)
+    tmp.replace(INDEX_FILE)
+
+
+@st.cache_data
+def _read_index(saved_at: float) -> pd.DataFrame:
+    """Read the saved index closes; `saved_at` (the file's mtime) is part of the cache key."""
+    return pd.read_parquet(INDEX_FILE)
+
+
+def load_index_prices() -> tuple[pd.DataFrame, str | None]:
+    """Daily index closes (dates x country names, PRICE_YEARS of history); never raises. Returns (prices, notice);
+    notice is None unless a due download failed, then it says what is shown instead (DESIGN.md 5.4)."""
+    ok = _ensure_saved(_index_state, _index_lock, _index_current, _download_and_save_index, "Country index",
+                       "Downloading daily closes for the country indices (Yahoo Finance)…")
+    try:
+        prices = _read_index(INDEX_FILE.stat().st_mtime)
+    except Exception as exc:  # no saved file yet, or unreadable
+        log.warning("Saved country index prices unusable: %s", exc)
+        return pd.DataFrame(), "Country index download failed; no saved prices available."
+    if ok:
+        return prices, None
+    return prices, f"Country index download failed; showing saved prices (latest observation {prices.index[-1]:%d %b %Y})."
+
+
 @st.cache_data(ttl=3600)
 def refreshed_at() -> pd.Timestamp:
     """SGT wall-clock time this cache generation was created; resets when the cache is cleared."""
@@ -370,6 +419,7 @@ def refreshed_at() -> pd.Timestamp:
 def refresh() -> None:
     st.cache_data.clear()
     _price_state["force"] = True  # the next price load re-downloads, whatever the age of the saved files
+    _index_state["force"] = True
 
 
 def moving_average(data: pd.Series, window: int) -> pd.Series:

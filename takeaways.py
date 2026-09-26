@@ -147,10 +147,29 @@ def summarise_sector_returns(returns: Mapping[str, float], timeframe: str, bench
     return ReturnsSummary(returns, asof, (today - asof).days > MAX_AGE_DAYS["D"], text)
 
 
+def summarise_country_returns(returns: Mapping[str, float], timeframe: str, asof: pd.Timestamp,
+                              today: pd.Timestamp | None = None) -> ReturnsSummary | None:
+    """One sentence on the selected countries' index return over a timeframe: who led and who lagged.
+    Describes only. None when no country has a return."""
+    returns = {name: r for name, r in returns.items() if pd.notna(r)}
+    if not returns:
+        return None
+    today = today or pd.Timestamp.today().normalize()
+    ranked = sorted(returns.items(), key=lambda kv: kv[1], reverse=True)
+    (top, top_r), (bottom, bottom_r) = ranked[0], ranked[-1]
+    if len(ranked) == 1:
+        text = f"Over {timeframe}, {top} returned {_signed_pct(top_r)}"
+    else:
+        text = f"Over {timeframe}, {top} led at {_signed_pct(top_r)} and {bottom} lagged at {_signed_pct(bottom_r)}"
+    text += " (local-currency price return)."
+    return ReturnsSummary(returns, asof, (today - asof).days > MAX_AGE_DAYS["D"], text)
+
+
 def summarise_sector_table(table: pd.DataFrame, timeframes: Sequence[str], asof: pd.Timestamp,
-                           today: pd.Timestamp | None = None) -> ReturnsSummary | None:
-    """One sentence on a sectors x timeframes return table: how many sectors are up per timeframe, and
-    the leader and laggard over the longest timeframe shown. Describes only. None when there is no data."""
+                           today: pd.Timestamp | None = None, noun: str = "sectors") -> ReturnsSummary | None:
+    """One sentence on a rows x timeframes return table (sectors by default; `noun` names the rows): how many
+    are up per timeframe, and the leader and laggard over the longest timeframe shown. Describes only.
+    None when there is no data."""
     if table.empty or not timeframes:
         return None
     today = today or pd.Timestamp.today().normalize()
@@ -162,9 +181,9 @@ def summarise_sector_table(table: pd.DataFrame, timeframes: Sequence[str], asof:
     up = {tf: int((table[tf] > 0).sum()) for tf in timeframes}
     leader = f"{ranked.index[0]} leads ({_signed_pct(ranked.iloc[0])}) and {ranked.index[-1]} lags ({_signed_pct(ranked.iloc[-1])})"
     if len(timeframes) == 1:
-        text = f"Over {timeframes[0]}, {up[timeframes[0]]} of {n} sectors are up; {leader}."
+        text = f"Over {timeframes[0]}, {up[timeframes[0]]} of {n} {noun} are up; {leader}."
     else:
-        text = (f"Sectors up (of {n}): {', '.join(f'{tf} {k}' for tf, k in up.items())}; "
+        text = (f"{noun.capitalize()} up (of {n}): {', '.join(f'{tf} {k}' for tf, k in up.items())}; "
                 f"over {timeframes[-1]} {leader}.")
     return ReturnsSummary(ranked.to_dict(), asof, (today - asof).days > MAX_AGE_DAYS["D"], text)
 
