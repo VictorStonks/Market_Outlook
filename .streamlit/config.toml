@@ -1,0 +1,57 @@
+# Market Outlook Streamlit theme. Values MUST match DESIGN.md section 3 and theme.TOKENS.
+# To change a colour: edit DESIGN.md, theme.py and this file together (DESIGN.md 3).
+# This file MUST stay UTF-8 without a BOM (DESIGN.md 9.5).
+#
+# Defining both [theme.light] and [theme.dark] makes the app follow the OS setting.
+# To force dark-only, delete the [theme.light] table.
+
+[theme]
+# Options below apply to both themes. Font sizes are px so the spec sizes hold with baseFontSize = 14.
+base = "dark"
+font = "IBM Plex Sans:https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap, sans-serif"
+codeFont = "IBM Plex Mono:https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap, monospace"
+baseFontSize = 14
+headingFontSizes = ["24px", "18px", "15px", "14px", "13px", "12px"]
+headingFontWeights = 600
+metricValueFontSize = "28px"
+metricValueFontWeight = 600
+baseRadius = "small"
+buttonRadius = "small"
+showWidgetBorder = true
+
+# chart*Colors are valid only under [theme] (DESIGN.md 9.5), so these are the dark values.
+# They colour only native st.line_chart-style charts, which are banned (DESIGN.md 6.4);
+# they exist so an accidental native chart is still on-palette.
+chartCategoricalColors = ["#FFB000", "#56B4E9", "#E07BB5", "#9B8CFF", "#C7D0DC", "#38D6CF"]
+chartDivergingColors = ["#F0616D", "#C0535F", "#914552", "#613744", "#322937", "#1B3439", "#1E574B", "#217B5D", "#239E6F", "#26C281"]
+chartSequentialColors = ["#12314D", "#284660", "#3E5B74", "#547087", "#6A859B", "#819AAE", "#97AFC2", "#ADC4D5", "#C3D9E9", "#D9EEFC"]
+
+[theme.dark]
+# primaryColor is the control fill (white text on it >= 4.5:1). NOT the amber accent (DESIGN.md 3.1.1).
+primaryColor = "#A86300"
+backgroundColor = "#0B0F14"
+secondaryBackgroundColor = "#121821"
+textColor = "#E6EAF0"
+linkColor = "#FFB000"
+borderColor = "#2A3446"
+codeBackgroundColor = "#1A2230"
+dataframeHeaderBackgroundColor = "#1A2230"
+# Named palette = the up/down colours used by st.metric deltas and :colour-badge[] (theme.UPDOWN).
+greenColor = "#26C281"
+redColor = "#F0616D"
+blueColor = "#4C9BFF"
+orangeColor = "#FF9F43"
+
+[theme.light]
+primaryColor = "#9A5B00"
+backgroundColor = "#F7F9FC"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#101828"
+linkColor = "#9A5B00"
+borderColor = "#D5DCE6"
+codeBackgroundColor = "#EEF2F7"
+dataframeHeaderBackgroundColor = "#EEF2F7"
+greenColor = "#0A7C50"
+redColor = "#C8323F"
+blueColor = "#0B5FCC"
+orangeColor = "#A85200"

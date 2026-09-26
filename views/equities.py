@@ -1,0 +1,18 @@
+"""Equities: stock price, normalised price and sector return panels (yfinance); index levels are still to come (DESIGN.md sections 4 and 11 step 9)."""
+import streamlit as st
+
+import panels
+
+panels.page_header("Equities")
+lookback_years, ma_window = panels.global_settings()
+left, right = st.columns(2)  # two-column grid, as on Rates & Credit (DESIGN.md 4)
+with left:
+    panels.render_stock_price_panel(lookback_years, ma_window)
+with right:
+    panels.render_normalised_panel(lookback_years, ma_window)
+left, right = st.columns(2)  # sector panels have their own timeframe pills, so they ignore the sidebar lookback
+with left:
+    panels.render_sector_line_panel()
+with right:
+    panels.render_sector_table_panel()
+st.info("Not built yet: index levels (Yahoo Finance via yfinance).")
