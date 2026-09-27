@@ -206,6 +206,24 @@ def whats_changed(summaries: Mapping[str, Summary], *, move_z: float = 2.0, extr
     return lines
 
 
+def summarise_pe_screen(pe_z: pd.Series, window: str, asof: pd.Timestamp,
+                        today: pd.Timestamp | None = None) -> ReturnsSummary | None:
+    """One sentence on the stocks shown in the forward P/E table: how many sit below their own average forward P/E
+    over the window, and how many are more than 2σ from it. Describes only. `returns` holds the median σ.
+    None when no row is shown."""
+    if pe_z.empty:
+        return None
+    today = today or pd.Timestamp.today().normalize()
+    z = pe_z.dropna()
+    if z.empty:
+        text = f"None of the {len(pe_z)} stocks shown has a forward P/E."
+    else:
+        text = (f"{int((z < 0).sum())} of {len(z)} stocks with a forward P/E are below their {window} average "
+                f"({int((z.abs() > 2).sum())} more than 2σ from it).")
+    return ReturnsSummary({"median σ": float(z.median()) if len(z) else float("nan")}, asof,
+                          (today - asof).days > MAX_AGE_DAYS["D"], text)
+
+
 def summarise_pe_comparison(label: str, level: float, others: Mapping[str, float], asof: pd.Timestamp,
                             today: pd.Timestamp | None = None) -> ReturnsSummary:
     """One sentence placing a stock's NTM P/E against the group averages shown (sector, S&P 500), as a % premium or

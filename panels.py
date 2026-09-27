@@ -17,7 +17,8 @@ import sectors
 import theme
 import valuation
 from takeaways import (ReturnsSummary, Summary, TakeawaySpec, summarise, summarise_country_returns,
-                       summarise_pe_comparison, summarise_returns, summarise_sector_returns, summarise_sector_table)
+                       summarise_pe_comparison, summarise_pe_screen, summarise_returns, summarise_sector_returns,
+                       summarise_sector_table)
 
 FREQ_NAMES = {"D": "Daily", "W": "Weekly", "M": "Monthly", "Q": "Quarterly"}
 NO_SUMMARY = "Not enough history in the loaded window for a summary."
@@ -647,6 +648,101 @@ def render_ntm_pe_row(lookback_years: int) -> None:
         ticker = _ntm_pe_history_panel(lookback_years, prices, ticker_of)
     with right:
         _ntm_pe_compare_panel(lookback_years, universe, prices, ticker_of, ticker)
+
+
+SCREEN_HEIGHT = 600                    # px; about 16 rows, the rest scroll inside the table
+SCREEN_SHADE_CAP = 0.95                # shading saturates at this quantile of each column, so outliers stay readable
+
+
+def _pe_screen_view(universe: pd.DataFrame, table: pd.DataFrame, query: str, sectors_picked: list[str]
+                    ) -> pd.DataFrame:
+    """Rows matching the search box and sector filter, largest market cap first, in the table's own units."""
+    rows = universe.set_index("ticker")[["name", "sector"]].join(table, how="inner")
+    if sectors_picked:
+        rows = rows[rows["sector"].isin(sectors_picked)]
+    if query := query.strip():
+        hit = rows.index.str.contains(query, case=False, regex=False) | \
+            rows["name"].str.contains(query, case=False, regex=False)
+        rows = rows[hit]
+    rows["market_cap"] = rows["market_cap"] / 1e9
+    return rows.sort_values("market_cap", ascending=False, na_position="last")
+
+
+def _pe_screen_styler(view: pd.DataFrame, cols: dict[str, str]):
+    """Display frame (company, ticker, then numbers in the order the owner asked for) with house number formats;
+    σ is shaded. Sorting in the table uses the underlying numbers, not the formatted text."""
+    shown = view.reset_index().rename(columns=cols)[list(cols.values())]
+    formats = {cols["market_cap"]: (1, False), cols["pe"]: (1, False), cols["pe_z"]: (1, True),
+               cols["sector_pe"]: (1, False)}
+    styler = shown.style.format({c: (lambda v, d=d: theme.fmt_signed(v, d)) if signed else
+                                 (lambda v, d=d: theme.fmt_num(v, d)) for c, (d, signed) in formats.items()},
+                                na_rep=theme.MISSING)
+    return theme.shade_signed(styler, [cols["pe_z"]], good_when="down", cap_quantile=SCREEN_SHADE_CAP)
+
+
+def _pe_screen_csv(view: pd.DataFrame, cols: dict[str, str]) -> bytes:
+    """The rows shown (filters applied), rounded to 4 decimals."""
+    return view.reset_index().rename(columns=cols)[list(cols.values())].round(4).to_csv(index=False).encode("utf-8")
+
+
+@st.fragment
+def render_pe_screen_panel(lookback_years: int) -> None:
+    """Every S&P 500 stock in one sortable table: market cap, NTM P/E, how far that P/E is from its own average over the sidebar lookback (σ, as on the history chart's
+    bands) and the GICS sector's market-cap weighted NTM P/E. Search and sector filter above; click a column header
+    to sort it either way."""
+    title = "Forward P/E screen"
+    window = f"{lookback_years}Y"
+    subtitle = f"S&P 500 · USD bn and x (see column headers) · daily · σ over the {window} window"
+    with st.container(border=True):
+        head = st.container()  # filled after the controls so the takeaway describes the rows shown
+        universe, universe_notice = data.load_universe()
+        prices, price_notice = data.load_prices("close")
+        eps_all, _, eps_notice = data.load_ntm_eps()
+        shares, shares_notice = data.load_shares()
+        _warn_all([n for n in (universe_notice, price_notice, eps_notice, shares_notice) if n])
+
+        col_search, col_sector = st.columns([2, 3])
+        query = col_search.text_input("Search", key="pe_screen_q", placeholder="Ticker or company name",
+                                      help="Narrows the table to tickers or company names containing this text.")
+        sector_names = sorted(universe["sector"].dropna().unique()) if not universe.empty else []
+        picked = col_sector.multiselect("Sectors", sector_names, key="pe_screen_sectors", placeholder="All sectors",
+                                        help="GICS sectors to show. Leave empty to show every sector.")
+
+        available = not (prices.empty or universe.empty)
+        sm, view, asof = None, pd.DataFrame(), None
+        if available:
+            asof = prices.index[-1]
+            sector_of = universe.set_index("ticker")["sector"]
+            table = valuation.pe_screen(prices, eps_all, shares, sector_of, _pe_cutoff(lookback_years))
+            view = _pe_screen_view(universe, table, query, picked)
+            sm = summarise_pe_screen(view["pe_z"], window, asof)
+        with head:
+            theme.panel_header(title, subtitle, sm.text if sm else "")
+
+        cols = {"name": "Company", "ticker": "Ticker", "market_cap": "Market cap (USD bn)", "pe": "Fwd P/E (x)",
+                "pe_z": f"P/E σ vs {window} avg", "sector": "Sector", "sector_pe": "Sector P/E (x)"}
+        if not view.empty:
+            st.dataframe(_pe_screen_styler(view, cols), hide_index=True, width="stretch", height=SCREEN_HEIGHT,
+                         column_config={"Company": st.column_config.TextColumn(pinned=True)})
+            st.download_button("Download table (CSV)", _pe_screen_csv(view, cols), file_name="forward_pe_screen.csv",
+                               mime="text/csv", icon=":material/download:", key="pe_screen_download",
+                               help="The rows shown (search and sector filter applied).")
+        elif available:
+            st.info("No stocks match the search and sector filter.")
+        else:
+            st.info("No stock prices available.")
+
+        notes = [
+            "Click a column header to sort; click again to reverse.",
+            f"σ = distance of today's forward P/E from its {window} mean, in standard deviations over the same window, "
+            "as on the Forward P/E chart's bands (needs at least 8 days of positive NTM EPS). Stocks with negative "
+            "or missing NTM EPS show — for P/E and σ.",
+            "Sector P/E = GICS sector's total market cap over total NTM earnings (negative EPS excluded), as on the "
+            "comparison chart. Market cap = today's shares outstanding per share class × last completed US close.",
+            "Shading: a P/E below its own average uses the up colour; it saturates at the 95th percentile.",
+        ]
+        theme.panel_footer(STOCK_SOURCE, FREQ_NAMES["D"], asof, stale=bool(sm and sm.stale),
+                           caveat=" ".join([*notes, PE_CAVEAT]))
 
 
 # ---------- Equities: sector return panels ----------

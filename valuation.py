@@ -105,3 +105,29 @@ def group_ntm_pe(prices: pd.DataFrame, eps: pd.DataFrame, shares: pd.Series) -> 
     earnings = (e * sh).where(valid).sum(axis=1, min_count=1)
     out = pd.DataFrame({"pe": cap / earnings, "n": valid.sum(axis=1)})
     return out.dropna(subset=["pe"])
+
+
+def pe_screen(prices: pd.DataFrame, eps: pd.DataFrame, shares: pd.Series, sector_of: pd.Series,
+              cutoff: pd.Timestamp, min_obs: int = 8) -> pd.DataFrame:
+    """One row per stock in `prices` (index = ticker), on the latest price date:
+    `market_cap` (today's shares x latest close), `pe` (NTM P/E, NaN unless NTM EPS is positive), `pe_z` (today's NTM P/E minus its mean since `cutoff`, in
+    standard deviations of that window; NaN with fewer than `min_obs` positive-EPS days, the same windowed mean and
+    sample σ as the history chart's bands) and `sector_pe` (the stock's GICS sector average, as `group_ntm_pe`)."""
+    tickers = prices.columns
+    eps = eps.reindex(index=prices.index, columns=tickers)
+    price, e_now = prices.iloc[-1], eps.iloc[-1]
+    pe_now = price / e_now.where(e_now > 0)
+    history = (prices / eps.where(eps > 0)).loc[prices.index >= cutoff]
+    sd = history.std()
+    pe_z = ((pe_now - history.mean()) / sd.where(sd > 0)).where(history.count() >= min_obs)
+
+    sector = sector_of.reindex(tickers)
+    sector_pe = pd.Series(np.nan, index=tickers)
+    for name, members in sector.dropna().groupby(sector.dropna()).groups.items():
+        grp = group_ntm_pe(prices.iloc[[-1]], eps.iloc[[-1]], shares.reindex(members).dropna())
+        if not grp.empty:
+            sector_pe[sector == name] = float(grp["pe"].iloc[-1])
+
+    return pd.DataFrame({
+        "market_cap": shares.reindex(tickers) * price, "pe": pe_now, "pe_z": pe_z, "sector_pe": sector_pe,
+    }).rename_axis("ticker")

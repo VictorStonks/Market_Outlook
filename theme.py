@@ -194,12 +194,11 @@ def _mix(base: str, hue: str, fraction: float) -> str:
         for i in (0, 2, 4))
 
 
-def signed_heatmap(df: pd.DataFrame, *, decimals: int = 1, unit: str = "%", arrows: bool = True):
-    """pandas Styler for a table of signed changes (DESIGN.md 5.3, 6.2 heatmap): the value is printed in every
-    cell with sign and arrow (fmt_delta; `arrows=False` drops the arrow for narrow tables and keeps the sign),
-    and each COLUMN is shaded on its own scale around zero: the `up` colour for gains, the `down` colour for
-    losses, darkest = the column's largest move. Colours follow the up/down mode. Tint strength is capped so
-    the text keeps >= 4.5:1 contrast on every cell."""
+def _signed_shader(good_when: str = "up", cap_quantile: float | None = None):
+    """Column function for `Styler.apply`: shades each cell around zero, `up` colour for favourable values and
+    `down` for unfavourable (`good_when="down"` flips which sign is favourable), darkest = the column's largest
+    absolute value, or its `cap_quantile` quantile so one outlier does not wash out the rest. Colours follow the
+    up/down mode. Tint strength is capped so the text keeps >= 4.5:1 contrast on every cell."""
     t = tokens()
     base, text = t["raised"], t["text"]
 
@@ -212,18 +211,33 @@ def signed_heatmap(df: pd.DataFrame, *, decimals: int = 1, unit: str = "%", arro
     strength = {"up": strongest(t["up"]), "down": strongest(t["down"])}
 
     def shade(col: pd.Series) -> list[str]:
-        span = col.abs().max()
+        mags = col.abs()
+        span = mags.quantile(cap_quantile) if cap_quantile is not None else mags.max()
         styles = []
         for v in col:
-            if pd.isna(v) or v == 0 or not span:
+            if pd.isna(v) or v == 0 or not span or pd.isna(span):
                 styles.append("")
                 continue
-            side = "up" if v > 0 else "down"
-            styles.append(f"background-color: {_mix(base, t[side], strength[side] * abs(v) / span)}; color: {text}")
+            side = "up" if (v > 0) == (good_when == "up") else "down"
+            styles.append(f"background-color: {_mix(base, t[side], strength[side] * min(abs(v) / span, 1.0))}; "
+                          f"color: {text}")
         return styles
 
+    return shade
+
+
+def shade_signed(styler, columns: Sequence[str], *, good_when: str = "up", cap_quantile: float | None = None):
+    """Add signed shading (see `_signed_shader`) to some columns of an existing Styler; formats are left alone."""
+    return styler.apply(_signed_shader(good_when, cap_quantile), axis=0, subset=list(columns))
+
+
+def signed_heatmap(df: pd.DataFrame, *, decimals: int = 1, unit: str = "%", arrows: bool = True):
+    """pandas Styler for a table of signed changes (DESIGN.md 5.3, 6.2 heatmap): the value is printed in every
+    cell with sign and arrow (fmt_delta; `arrows=False` drops the arrow for narrow tables and keeps the sign),
+    and each COLUMN is shaded on its own scale around zero: the `up` colour for gains, the `down` colour for
+    losses, darkest = the column's largest move."""
     fmt = fmt_delta if arrows else fmt_signed
-    return df.style.apply(shade, axis=0).format(lambda v: fmt(v, decimals, unit), na_rep=MISSING)
+    return df.style.apply(_signed_shader(), axis=0).format(lambda v: fmt(v, decimals, unit), na_rep=MISSING)
 
 
 # ---------- Plotly ----------

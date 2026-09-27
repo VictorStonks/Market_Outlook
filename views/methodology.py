@@ -69,19 +69,28 @@ st.markdown(
 st.subheader("Forward P/E vs sector and S&P 500", anchor=False)
 st.markdown(
     "The comparison panel plots the same NTM P/E for one stock against the average of its GICS sector and of the "
-    "S&P 500. It has no historical mean or band.
-"
+    "S&P 500. It has no historical mean or band.\n"
     "- **Average.** Total market cap of the group divided by its total NTM earnings, the way an index P/E is "
-    "quoted, so large companies weigh more. It is not a mean or median of the stocks' P/Es.
-"
+    "quoted, so large companies weigh more. It is not a mean or median of the stocks' P/Es.\n"
     "- **Negative EPS.** A stock counts on a date only if its NTM EPS is positive, so loss-makers are left out "
-    "of both market cap and earnings. The footer says how many stocks the latest value counts.
-"
+    "of both market cap and earnings. The footer says how many stocks the latest value counts.\n"
     "- **Weights.** Today's share counts are used for the whole window, so past market caps are approximate. "
-    "The universe is today's S&P 500 constituents.
-"
+    "The universe is today's S&P 500 constituents.\n"
     "- **Data.** EPS for all constituents is downloaded once (a few minutes on the first run) and refreshed "
     "weekly."
+)
+
+st.subheader("Forward P/E screen", anchor=False)
+st.markdown(
+    "One row per S&P 500 stock, sortable by any column (click the header; click again to reverse), with a search "
+    "box and a sector filter. Opens largest market cap first.\n"
+    "- **Forward P/E.** The same NTM P/E as the chart, on the latest close. Negative or missing NTM EPS shows as —.\n"
+    "- **σ vs average.** Today's forward P/E minus its mean over the sidebar lookback, divided by its standard "
+    "deviation over the same window: the same numbers as the chart's bands.\n"
+    "- **Sector P/E.** The GICS sector average from the comparison panel (total market cap over total NTM "
+    "earnings, negative EPS excluded).\n"
+    "- **Market cap.** Today's shares outstanding per share class × the last completed US close, so dual-class companies appear once per "
+    "class."
 )
 
 st.subheader("Conventions", anchor=False)
