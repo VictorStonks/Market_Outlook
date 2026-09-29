@@ -224,6 +224,27 @@ def summarise_pe_screen(pe_z: pd.Series, window: str, asof: pd.Timestamp,
                           (today - asof).days > MAX_AGE_DAYS["D"], text)
 
 
+def summarise_corr_matrix(corr: pd.DataFrame, timeframe: str, asof: pd.Timestamp,
+                          today: pd.Timestamp | None = None) -> ReturnsSummary | None:
+    """One sentence on a correlation matrix: the most and least correlated pairs and the average across all pairs.
+    Describes only. `returns` holds each pair's correlation ("A–B"). None with no computable pair."""
+    names = list(corr.columns)
+    pairs = {f"{a}–{b}": float(corr.loc[a, b]) for i, a in enumerate(names) for b in names[i + 1:]
+             if pd.notna(corr.loc[a, b])}
+    if not pairs:
+        return None
+    today = today or pd.Timestamp.today().normalize()
+    ranked = sorted(pairs.items(), key=lambda kv: kv[1], reverse=True)
+    (top, top_v), (bottom, bottom_v) = ranked[0], ranked[-1]
+    if len(ranked) == 1:
+        text = f"Over {timeframe}, {top} correlation is {fmt_num(top_v, 2)}."
+    else:
+        mean = sum(pairs.values()) / len(pairs)
+        text = (f"Over {timeframe}, the most correlated pair is {top} ({fmt_num(top_v, 2)}) and the least is {bottom} "
+                f"({fmt_num(bottom_v, 2)}); the average across {len(pairs)} pairs is {fmt_num(mean, 2)}.")
+    return ReturnsSummary(pairs, asof, (today - asof).days > MAX_AGE_DAYS["D"], text)
+
+
 def summarise_pe_comparison(label: str, level: float, others: Mapping[str, float], asof: pd.Timestamp,
                             today: pd.Timestamp | None = None) -> ReturnsSummary:
     """One sentence placing a stock's NTM P/E against the group averages shown (sector, S&P 500), as a % premium or

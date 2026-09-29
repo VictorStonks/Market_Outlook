@@ -11,12 +11,14 @@ from dataclasses import dataclass, field, replace
 import pandas as pd
 import streamlit as st
 
+import correlation
 import countries
 import data
 import sectors
 import theme
 import valuation
-from takeaways import (ReturnsSummary, Summary, TakeawaySpec, summarise, summarise_country_returns,
+from takeaways import (ReturnsSummary, Summary, TakeawaySpec, summarise, summarise_corr_matrix,
+                       summarise_country_returns,
                        summarise_pe_comparison, summarise_pe_screen, summarise_returns, summarise_sector_returns,
                        summarise_sector_table)
 
@@ -431,7 +433,8 @@ def _pe_frame(prices: pd.Series, reported: pd.Series, estimates: dict, lag_days:
     return quarters, eps, valuation.ntm_pe(prices, eps)
 
 
-def _pe_select(key: str, ticker_of: dict[str, str], *, default: str | None = None, on_change=None) -> str | None:
+def _pe_select(key: str, ticker_of: dict[str, str], *, default: str | None = None, on_change=None,
+               label: str = "Search stock") -> str | None:
     """Single-stock search box (ticker or company name). `default` is a ticker used only when the widget has no
     value yet; returns the chosen ticker."""
     labels = list(ticker_of)
@@ -439,7 +442,7 @@ def _pe_select(key: str, ticker_of: dict[str, str], *, default: str | None = Non
     if key not in st.session_state:
         kwargs["index"] = next((i for i, label in enumerate(labels) if ticker_of[label] == default), 0) \
             if labels else None
-    picked = st.selectbox("Search stock", labels, key=key, placeholder="Ticker or company name", on_change=on_change,
+    picked = st.selectbox(label, labels, key=key, placeholder="Ticker or company name", on_change=on_change,
                           help="Type a ticker or company name. One stock at a time.", **kwargs)
     return ticker_of.get(picked)
 
@@ -743,6 +746,184 @@ def render_pe_screen_panel(lookback_years: int) -> None:
         ]
         theme.panel_footer(STOCK_SOURCE, FREQ_NAMES["D"], asof, stale=bool(sm and sm.stale),
                            caveat=" ".join([*notes, PE_CAVEAT]))
+
+
+# ---------- Equities: rolling correlation panel ----------
+
+CORR_DEFAULTS = ("AAPL", "MSFT")
+CORR_TAKEAWAY = TakeawaySpec("", unit="", decimals=2, freq="D", change_days=30, change_label="1M")
+CORR_CAVEAT = ("Pearson correlation of daily total returns (split- and dividend-adjusted close), on days both stocks "
+               "have a close. Mean, ±1σ and ±2σ bands are over the loaded lookback window. The universe is today's "
+               "S&P 500 constituents.")
+
+
+@st.fragment
+def render_correlation_panel(lookback_years: int) -> None:
+    """Rolling correlation of two S&P 500 stocks' daily returns over the sidebar lookback, against its window mean
+    and ±1σ / ±2σ bands (DESIGN.md 6.2 "rich or cheap vs history"). Each stock has its own search box; pills set the
+    rolling window."""
+    title = "Rolling correlation"
+    subtitle = "Correlation coefficient (−1 to +1) of daily total returns · daily"
+    st.session_state.setdefault("corr_window", correlation.DEFAULT_WINDOW)
+    with st.container(border=True):
+        head = st.container()  # filled after the controls so the takeaway can use the loaded data
+        universe, universe_notice = data.load_universe()
+        prices, price_notice = data.load_prices("adj_close")
+        _warn_all([n for n in (universe_notice, price_notice) if n])
+        listed = universe[universe["ticker"].isin(prices.columns)]
+        ticker_of = dict(zip(listed["label"], listed["ticker"]))
+
+        col_a, col_b = st.columns(2)  # pills on their own row: beside the boxes they squeeze them at half width
+        with col_a:
+            a = _pe_select("corr_a", ticker_of, default=CORR_DEFAULTS[0], label="First stock")
+        with col_b:
+            b = _pe_select("corr_b", ticker_of, default=CORR_DEFAULTS[1], label="Second stock")
+        st.segmented_control(
+            "Rolling window", tuple(correlation.WINDOWS), key="corr_window", on_change=_keep_selection,
+            args=("corr_window", correlation.DEFAULT_WINDOW),
+            help="Trading days in each correlation: "
+                 + ", ".join(f"{k} = {v}" for k, v in correlation.WINDOWS.items()) + ".")
+        window_label = st.session_state["corr_window"]
+        n_days = correlation.WINDOWS[window_label]
+
+        corr, sm, notes = pd.Series(dtype=float), None, []
+        if a and b and a != b:
+            # Computed on the full saved history, then cut, so the line starts at the window's left edge.
+            full = correlation.rolling_correlation(prices[a], prices[b], n_days)
+            cutoff = pd.Timestamp.now() - pd.Timedelta(days=365 * lookback_years)  # as data.prices_window
+            corr = full.loc[full.index >= cutoff]
+            if len(corr) >= 8:
+                sm = summarise(corr, replace(CORR_TAKEAWAY, label=f"{a}–{b} {window_label} correlation"))
+                if corr.index[0] > cutoff + pd.Timedelta(days=30):
+                    notes.append(f"The chart starts {corr.index[0]:%d %b %Y}, the first date with {n_days} trading "
+                                 "days of shared price history.")
+                mu, sd = float(corr.mean()), float(corr.std())
+                if mu + 2 * sd > 1 or mu - 2 * sd < -1:
+                    notes.append("The ±2σ band extends past the possible range of −1 to +1; it is a statistical band, "
+                                 "not a bound.")
+        with head:
+            theme.panel_header(title, subtitle, (sm.text if sm else NO_SUMMARY) if len(corr) else "")
+
+        if len(corr) >= 8:
+            theme.render(theme.band_fig(f"{a}–{b}", corr, k=(1, 2), decimals=2, height=400), key="corr")
+        elif not ticker_of:
+            st.info("No stock prices available.")
+        elif not (a and b):
+            st.info("Select two stocks to compare.")
+        elif a == b:
+            st.info("Choose two different stocks; a stock's correlation with itself is always 1.")
+        else:
+            st.info(f"Not enough shared price history for a {window_label} rolling correlation of {a} and {b} "
+                    "in this window.")
+        theme.panel_footer(STOCK_SOURCE, FREQ_NAMES["D"], corr.index[-1] if len(corr) else None,
+                           stale=bool(sm and sm.stale), caveat=" ".join([*notes, CORR_CAVEAT]))
+        if len(corr) >= 8:
+            with st.expander("Raw data"):
+                raw = pd.DataFrame({f"{a} adj. close (USD)": prices[a], f"{b} adj. close (USD)": prices[b]}
+                                   ).reindex(corr.index)
+                raw[f"{window_label} correlation"] = corr
+                st.dataframe(_raw_table(raw, "", 2), width="stretch")
+
+
+MATRIX_MAX = 8                         # stocks + countries combined: cells stay readable in a half-width panel
+MATRIX_STOCKS = ("AAPL", "MSFT", "NVDA", "JPM", "XOM")
+MATRIX_COUNTRIES = ("US", "Europe")
+MATRIX_CAVEAT = ("Pearson correlation of daily returns, per pair on the days both have a close. Stocks: split- and "
+                 "dividend-adjusted close (total return, USD). Country indices: price return in local currency. "
+                 "Colours: near −1 uses the up colour, near +1 the down colour (see the sidebar convention).")
+_REGION = {"America": "US", "Europe": "Europe", "Asia": "Asia"}  # time-zone prefix -> trading session
+
+
+def _matrix_session(names: list[str]) -> set[str]:
+    """Trading sessions (US, Europe, Asia) covered by the chosen countries; stocks trade in the US session."""
+    tz_of = {c.name: c.tz for c in countries.COUNTRIES}
+    return {_REGION[tz_of[n].split("/")[0]] if n in tz_of else "US" for n in names}
+
+
+def _fit_matrix_limit(key: str, other: str) -> None:
+    """One limit shared by the two matrix boxes. A per-box max_selections that depends on the other box would
+    change the widget's identity and clear it, so the box just edited is trimmed back instead."""
+    room = MATRIX_MAX - len(st.session_state.get(other, []))
+    if len(st.session_state[key]) > room:
+        st.session_state[key] = st.session_state[key][:max(room, 0)]
+        st.session_state["corr_mx_trimmed"] = True
+
+
+@st.fragment
+def render_corr_matrix_panel() -> None:
+    """Correlation of daily returns between any mix of S&P 500 stocks and country indices over a timeframe, as a
+    heatmap with the value printed in each cell (DESIGN.md 6.2). Stocks and countries have separate search boxes that
+    share one limit (MATRIX_MAX); timeframe pills sit beside them."""
+    title = "Correlation matrix"
+    subtitle = "Correlation coefficient (−1 to +1) of daily returns · daily"
+    with st.container(border=True):
+        head = st.container()  # filled after the controls so the takeaway can use the loaded data
+        universe, universe_notice = data.load_universe()
+        stock_px, price_notice = data.load_prices("adj_close")
+        index_px, index_notice = data.load_index_prices()
+        _warn_all([n for n in (universe_notice, price_notice, index_notice) if n])
+        listed = universe[universe["ticker"].isin(stock_px.columns)]
+        ticker_of = dict(zip(listed["label"], listed["ticker"]))
+        label_of = {t: label for label, t in ticker_of.items()}
+        country_names = [n for n in countries.NAMES if n in index_px.columns]
+
+        st.session_state.setdefault("corr_mx_stocks", [label_of[t] for t in MATRIX_STOCKS if t in label_of])
+        st.session_state.setdefault("corr_mx_countries", [n for n in MATRIX_COUNTRIES if n in country_names])
+        st.session_state.setdefault("corr_mx_tf", correlation.DEFAULT_MATRIX_TIMEFRAME)
+        limit_help = f"Up to {MATRIX_MAX} stocks and countries combined."
+
+        col_s, col_c = st.columns(2)  # pills on their own row below, as in the rolling correlation panel
+        picked = col_s.multiselect("Stocks", list(ticker_of), key="corr_mx_stocks", max_selections=MATRIX_MAX,
+                                   on_change=_fit_matrix_limit, args=("corr_mx_stocks", "corr_mx_countries"),
+                                   placeholder="Ticker or company name",
+                                   help=f"S&P 500 stocks, by ticker or company name. {limit_help}")
+        picked_c = col_c.multiselect("Country indices", country_names, key="corr_mx_countries",
+                                     on_change=_fit_matrix_limit, args=("corr_mx_countries", "corr_mx_stocks"),
+                                     placeholder="Country", help=f"One benchmark index per country. {limit_help}")
+        if st.session_state.pop("corr_mx_trimmed", False):
+            st.caption(f"Limit reached: up to {MATRIX_MAX} stocks and countries combined. "
+                       "Remove one to add another.")
+        st.segmented_control("Timeframe", tuple(correlation.MATRIX_TIMEFRAMES), key="corr_mx_tf",
+                                 on_change=_keep_selection, args=("corr_mx_tf", correlation.DEFAULT_MATRIX_TIMEFRAME))
+        timeframe = st.session_state["corr_mx_tf"]
+
+        chosen = [ticker_of[label] for label in picked] + list(picked_c)
+        frame = pd.concat({t: stock_px[t] for t in chosen if t in stock_px} |
+                          {n: index_px[n] for n in picked_c}, axis=1, sort=True)[chosen] if chosen else pd.DataFrame()
+        corr, counts, sm, notes, asof = pd.DataFrame(), pd.DataFrame(), None, [], None
+        if len(chosen) >= 2:
+            corr, counts = correlation.matrix(frame, timeframe)
+            asof = frame.dropna(how="all").index[-1]
+            sm = summarise_corr_matrix(corr, timeframe, asof)
+            thin = [f"{a}–{b}" for i, a in enumerate(chosen) for b in chosen[i + 1:] if pd.isna(corr.loc[a, b])]
+            if thin:
+                notes.append(f"Fewer than {correlation.MIN_PAIRED} shared daily returns in the timeframe, left blank: "
+                             f"{', '.join(thin)}.")
+            if len(_matrix_session(chosen)) > 1:
+                notes.append("Markets close at different times, so a same-day return in an earlier market misses "
+                             "moves after its close; daily correlations between different sessions (US, Europe, "
+                             "Asia) are understated.")
+            if picked_c:
+                used = "; ".join(f"{c.name} = {c.index}" for c in countries.COUNTRIES if c.name in picked_c)
+                notes.append(f"Indices: {used}.")
+        with head:
+            theme.panel_header(title, subtitle, (sm.text if sm else NO_SUMMARY) if len(chosen) >= 2 else "")
+
+        if sm:
+            theme.render(theme.corr_heatmap_fig(corr, counts=counts, height=400), key="corr_matrix")
+        elif not (ticker_of or country_names):
+            st.info("No prices available.")
+        elif len(chosen) < 2:
+            st.info("Select at least two stocks or countries.")
+        else:
+            st.info(f"Not enough shared daily returns in the {timeframe} timeframe for any pair.")
+        theme.panel_footer(STOCK_SOURCE, FREQ_NAMES["D"], asof, stale=bool(sm and sm.stale),
+                           caveat=" ".join([*notes, MATRIX_CAVEAT]))
+        if sm:
+            with st.expander("Raw data"):
+                st.dataframe(corr.style.format(lambda v: theme.fmt_num(v, 2), na_rep=theme.MISSING), width="stretch")
+                st.caption("Paired daily returns per cell")
+                st.dataframe(counts, width="stretch")
 
 
 # ---------- Equities: sector return panels ----------

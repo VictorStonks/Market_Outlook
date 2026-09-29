@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 
+import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
@@ -194,6 +195,14 @@ def _mix(base: str, hue: str, fraction: float) -> str:
         for i in (0, 2, 4))
 
 
+def _max_tint(base: str, hue: str, text: str) -> float:
+    """Largest fraction of the way from `base` towards `hue` at which `text` still has >= 4.5:1 contrast."""
+    f = 1.0
+    while f > 0 and _contrast(text, _mix(base, hue, f)) < 4.5:
+        f -= 0.02
+    return max(f, 0.0)
+
+
 def _signed_shader(good_when: str = "up", cap_quantile: float | None = None):
     """Column function for `Styler.apply`: shades each cell around zero, `up` colour for favourable values and
     `down` for unfavourable (`good_when="down"` flips which sign is favourable), darkest = the column's largest
@@ -201,14 +210,7 @@ def _signed_shader(good_when: str = "up", cap_quantile: float | None = None):
     up/down mode. Tint strength is capped so the text keeps >= 4.5:1 contrast on every cell."""
     t = tokens()
     base, text = t["raised"], t["text"]
-
-    def strongest(hue: str) -> float:
-        f = 1.0
-        while f > 0 and _contrast(text, _mix(base, hue, f)) < 4.5:
-            f -= 0.02
-        return max(f, 0.0)
-
-    strength = {"up": strongest(t["up"]), "down": strongest(t["down"])}
+    strength = {side: _max_tint(base, t[side], text) for side in ("up", "down")}
 
     def shade(col: pd.Series) -> list[str]:
         mags = col.abs()
@@ -369,6 +371,39 @@ def bar_fig(
     for name, color in zip(df.columns, categorical_colors(len(df.columns))):
         fig.add_trace(go.Bar(x=[str(i) for i in df.index], y=df[name].values, name=str(name),
                              marker_color=color, hovertemplate=_hover(unit, decimals)))
+    return fig
+
+
+def corr_heatmap_fig(
+    matrix: pd.DataFrame, *, counts: pd.DataFrame | None = None, decimals: int = 2, height: int = 400,
+    good_when: str = "down",
+) -> go.Figure:
+    """Correlation matrix (DESIGN.md 6.2 heatmap): the value is printed in every cell on a fixed −1 to +1 scale,
+    neutral (`raised`) at 0. With `good_when="down"`, correlations near −1 take the up colour and near +1 the down
+    colour, so the colours follow the up/down mode. Tints stop where the text still has >= 4.5:1 contrast. Missing
+    values show as gaps. `counts` (same shape) adds the number of paired returns to the hover."""
+    t = tokens()
+    base, text = t["raised"], t["text"]
+    low, high = ("up", "down") if good_when == "down" else ("down", "up")
+    scale = [[0.0, _mix(base, t[low], _max_tint(base, t[low], text))], [0.5, base],
+             [1.0, _mix(base, t[high], _max_tint(base, t[high], text))]]
+    labels = [str(c) for c in matrix.columns]
+    z = matrix.to_numpy(dtype=float)
+    shade = z.copy()
+    np.fill_diagonal(shade, 0.0)  # each item with itself is always 1: print it, but leave the cell untinted
+    hover = "%{y} × %{x}: %{text}"
+    if counts is not None:
+        hover += "<br>%{customdata:,.0f} paired daily returns"
+    fig = go.Figure(layout=dict(template=plotly_template(), height=height, hovermode="closest"))
+    fig.add_trace(go.Heatmap(
+        z=shade, x=labels, y=labels, zmin=-1, zmax=1, colorscale=scale, showscale=False, xgap=2, ygap=2,
+        text=[[fmt_num(v, decimals) for v in row] for row in z], texttemplate="%{text}",
+        textfont=dict(color=text, size=12 if len(labels) <= 6 else 11),
+        customdata=None if counts is None else counts.to_numpy(dtype=float),
+        hovertemplate=hover + "<extra></extra>",
+    ))
+    fig.update_xaxes(showgrid=False, showspikes=False, side="top", type="category")
+    fig.update_yaxes(showgrid=False, showspikes=False, autorange="reversed", type="category")
     return fig
 
 

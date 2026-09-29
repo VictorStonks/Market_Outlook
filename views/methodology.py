@@ -80,6 +80,32 @@ st.markdown(
     "weekly."
 )
 
+st.subheader("Rolling correlation", anchor=False)
+st.markdown(
+    "Correlation between two S&P 500 stocks, recomputed every trading day over a trailing window.\n"
+    "- **Returns.** Daily % change of the split- and dividend-adjusted close (total return), only on days both "
+    "stocks have a close.\n"
+    "- **Window.** 1M, 3M, 6M or 12M = 21, 63, 126 or 252 trading days. A value is shown only once the window is "
+    "full, so a recently listed stock starts its line later.\n"
+    "- **Statistic.** Pearson correlation, from −1 (move opposite) to +1 (move together).\n"
+    "- **Band.** Mean, ±1σ and ±2σ of the rolling correlation over the loaded lookback window. The ±2σ band can "
+    "extend past ±1; it is a statistical band, not a bound."
+)
+
+st.subheader("Correlation matrix", anchor=False)
+st.markdown(
+    f"Correlation of daily returns between up to {panels.MATRIX_MAX} S&P 500 stocks and country indices combined, "
+    "over a timeframe from 1M to 5Y back from the latest close.\n"
+    "- **Returns.** Stocks use the split- and dividend-adjusted close (total return, USD); country indices use the "
+    "index level (price return, local currency).\n"
+    "- **Pairs.** Each pair uses only the days both have a close. A pair with fewer than "
+    "15 shared daily returns in the timeframe is left blank.\n"
+    "- **Time zones.** Asian markets close before Europe and the US open, so a same-day return misses moves that "
+    "happen after the earlier close. Daily correlations between different sessions are therefore understated.\n"
+    "- **Colours.** Fixed scale from −1 to +1, neutral at 0. Near −1 uses the up colour (green by default) and near "
+    "+1 the down colour (red by default), following the sidebar convention. The value is printed in every cell."
+)
+
 st.subheader("Forward P/E screen", anchor=False)
 st.markdown(
     "One row per S&P 500 stock, sortable by any column (click the header; click again to reverse), with a search "
