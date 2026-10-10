@@ -87,6 +87,17 @@ with st.container(border=True):
                                        x_title="CAPE", x_unit="x", unit="%"), key="sg_scatter")
     theme.panel_footer("Synthetic", "Monthly", days[-1])
 
+with st.container(border=True):
+    theme.panel_header("Price beside bars by level", "Shared price axis: price over time, horizontal bars per strike")
+    px = pd.Series(100 + np.cumsum(rng.normal(0, 1, 63)), index=pd.bdate_range(end=days[-1], periods=63))
+    strikes = np.arange(80, 125, 2.5)
+    oi = pd.DataFrame({"Calls": 4000 * np.exp(-((strikes - 110) / 8) ** 2),
+                       "Puts": 3000 * np.exp(-((strikes - 92) / 7) ** 2)}, index=strikes)
+    theme.render(theme.oi_profile_fig(px, oi, y_range=(78, 126), unit=" USD", x_title="Open interest (contracts)",
+                                      levels=[(f"Last {px.iloc[-1]:.2f}", px.iloc[-1], "dot"),
+                                              ("Max pain 100.00", 100.0, "dash")]), key="sg_oi")
+    theme.panel_footer("Synthetic", "Daily snapshot", days[-1])
+
 # ---------- What changed ----------
 st.subheader("What changed", anchor=False)
 lines = whats_changed({"10Y–2Y spread": sm, "BB OAS": summarise(credit["US BB"], TakeawaySpec("BB OAS", unit="%"))} if sm else {})

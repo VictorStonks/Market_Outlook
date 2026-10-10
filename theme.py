@@ -10,6 +10,7 @@ from collections.abc import Mapping, Sequence
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import streamlit as st
 
 FONT_SANS = "IBM Plex Sans, sans-serif"
@@ -438,6 +439,59 @@ def scatter_fit_fig(
             marker=dict(color=t["accent"], size=12, symbol="diamond", line=dict(color=t["text"], width=1)),
             hovertemplate=f"{point_name}: %{{x:,.{decimals}f}}{x_unit} → %{{y:,.{decimals}f}}{unit}<extra></extra>",
         ))
+    return fig
+
+
+def oi_profile_fig(
+    price: pd.Series, bars: pd.DataFrame, *, y_range: tuple[float, float], levels: Sequence[tuple[str, float, str]] = (),
+    net: pd.Series | None = None, unit: str = "", decimals: int = 2, axis_decimals: int | None = None,
+    x_title: str = "", x_unit: str = "", height: int = 400,
+) -> go.Figure:
+    """Price over time (left) and horizontal bars by price level (right) on ONE shared price axis, so a bar sits at
+    the price it belongs to (DESIGN.md 14, "Options open interest"; not a dual y-axis). `bars` is indexed by price
+    level with two columns: series 1 and 2 of the categorical palette, side by side (or stacked either side of zero
+    when one column is negative). `net` adds a marker per level. `levels` are labelled horizontal lines across both
+    parts: (label, y, style) with style "dash" | "dashdot" | "dot"; the label is printed, so colour is not the only
+    signal. `axis_decimals` sets the price axis ticks only; hover keeps `decimals` (strikes can be 102.5)."""
+    t = tokens()
+    names = list(bars.columns)
+    colors = categorical_colors(2)
+    stacked = bool((bars.to_numpy() < 0).any())
+    fig = make_subplots(rows=1, cols=2, shared_yaxes=True, column_widths=[0.58, 0.42], horizontal_spacing=0.02)
+    fig.update_layout(template=plotly_template(), height=height, hovermode="closest",
+                      barmode="relative" if stacked else "group", bargap=0.15, bargroupgap=0.05)
+    s = price.dropna()
+    fig.add_trace(go.Scatter(x=s.index, y=s.values, name="Close", mode="lines", line=dict(color=t["text"], width=2),
+                             hovertemplate=f"%{{x|%d %b %Y}}: %{{y:,.{decimals}f}}{unit}<extra></extra>"), row=1, col=1)
+    other = {names[0]: names[1], names[1]: names[0]}
+    for name, color in zip(names, colors):
+        col = bars[name]
+        fig.add_trace(go.Bar(
+            y=bars.index, x=col.values, orientation="h", name=name, marker_color=color, marker_line_width=0,
+            customdata=np.c_[bars[other[name]].values, net.values if net is not None else np.zeros(len(col))],
+            hovertemplate=(f"%{{y:,.{decimals}f}}{unit}<br>{name}: %{{x:,.0f}}{x_unit}<br>{other[name]}: "
+                           f"%{{customdata[0]:,.0f}}{x_unit}" + (f"<br>Net: %{{customdata[1]:,.0f}}{x_unit}"
+                                                                 if net is not None else "") + "<extra></extra>"),
+        ), row=1, col=2)
+    if net is not None:
+        fig.add_trace(go.Scatter(y=net.index, x=net.values, mode="markers", name="Net",
+                                 marker=dict(symbol="diamond", size=6, color=t["text"]),
+                                 hovertemplate=f"%{{y:,.{decimals}f}}{unit}<br>Net: %{{x:,.0f}}{x_unit}<extra></extra>"),
+                      row=1, col=2)
+    if stacked:
+        fig.add_vline(x=0, line_color=t["muted"], line_width=1, row=1, col=2)
+    line_color = {"dash": t["text"], "dashdot": t["text2"], "dot": t["muted"]}
+    for label, y, style in levels:
+        fig.add_shape(type="line", xref="paper", x0=0, x1=1, y0=y, y1=y, yref="y",
+                      line=dict(color=line_color[style], width=1.5 if style != "dot" else 1, dash=style))
+        fig.add_annotation(xref="paper", x=0.58, xanchor="right", y=y, yanchor="bottom", text=label, showarrow=False,
+                           font=dict(color=t["text"], size=11), bgcolor=_rgba(t["bg"], 0.7))
+    fig.update_yaxes(range=list(y_range), ticksuffix=unit,
+                     tickformat=f",.{decimals if axis_decimals is None else axis_decimals}f", showgrid=True,
+                     gridcolor=t["border"])
+    fig.update_xaxes(tickformat="%d %b", hoverformat="%d %b %Y", showgrid=False, row=1, col=1)
+    fig.update_xaxes(title_text=x_title, title_font=dict(color=t["text2"], size=12), tickformat="~s", showgrid=False,
+                     showspikes=False, zeroline=False, row=1, col=2)
     return fig
 
 

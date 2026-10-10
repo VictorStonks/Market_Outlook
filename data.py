@@ -853,6 +853,70 @@ def fx_to_usd(currency: str | None) -> float | None:
     return rate / divisor if rate > 0 else None
 
 
+# ---------- Listed options: Yahoo option chains, fetched on demand ----------
+
+# A snapshot only: Yahoo keeps no history of open interest, and it is not saved to disk (owner's choice). The last
+# good chain per request is kept for the server process, as for FRED series, so an outage still shows labelled data.
+_OPTION_WORKERS = 4            # parallel chain requests for "All expiries"; more risks rate limiting
+_LAST_GOOD_OPTIONS: dict[tuple[str, str], tuple[pd.DataFrame, dict]] = {}
+
+
+@st.cache_data(ttl=3600)
+def option_expiries(ticker: str) -> list[pd.Timestamp]:
+    """Listed expiries for `ticker`, nearest first; empty when Yahoo has none (non-US listings) or the fetch fails."""
+    try:
+        return [pd.Timestamp(e) for e in yf.Ticker(ticker).options]
+    except Exception as exc:
+        log.warning("Option expiries fetch failed for %s: %s", ticker, exc)
+        return []
+
+
+def _fetch_option_chain(ticker: str, expiry: pd.Timestamp) -> tuple[pd.DataFrame, dict]:
+    """One expiry's chain as tidy rows (expiry, type, strike, oi, iv) and the underlying's quote (spot, currency,
+    quote time). Raises on failure."""
+    chain = yf.Ticker(ticker).option_chain(f"{expiry:%Y-%m-%d}")
+    rows = []
+    for kind, frame in (("call", chain.calls), ("put", chain.puts)):
+        rows.append(pd.DataFrame({
+            "expiry": expiry, "type": kind, "strike": frame["strike"].astype(float),
+            "oi": pd.to_numeric(frame["openInterest"], errors="coerce").fillna(0.0),
+            "iv": pd.to_numeric(frame["impliedVolatility"], errors="coerce"),
+        }))
+    quote = chain.underlying if isinstance(chain.underlying, dict) else {}
+    stamp = quote.get("regularMarketTime")
+    info = {"spot": quote.get("regularMarketPrice"), "currency": quote.get("currency") or ticker_currency(ticker),
+            "quote_time": pd.Timestamp(stamp, unit="s", tz="UTC") if stamp else pd.Timestamp.now(tz="UTC")}
+    return pd.concat(rows, ignore_index=True), info
+
+
+@st.cache_data(ttl=3600)
+def _fetch_options(ticker: str, expiries: tuple[pd.Timestamp, ...]) -> tuple[pd.DataFrame, dict]:
+    """Chains for `expiries`, fetched in parallel and stacked, with the newest underlying quote. Raises on failure."""
+    with ThreadPoolExecutor(max_workers=_OPTION_WORKERS) as pool:
+        parts = list(pool.map(lambda e: _fetch_option_chain(ticker, e), expiries))
+    info = max((i for _, i in parts), key=lambda i: i["quote_time"])
+    if info["spot"] is None:
+        raise ValueError("no underlying price in the option chain")
+    return pd.concat([frame for frame, _ in parts], ignore_index=True), info
+
+
+def load_options(ticker: str, expiries: list[pd.Timestamp]) -> tuple[pd.DataFrame, dict, str | None]:
+    """Chains for `expiries` stacked into one frame, the underlying's latest quote and a notice; never raises. Falls
+    back to the last good copy of the same request with a notice (DESIGN.md 5.4); empty frame when there is none."""
+    key = (ticker, ",".join(f"{e:%Y%m%d}" for e in expiries))
+    try:
+        chain, info = _fetch_options(ticker, tuple(expiries))
+        _LAST_GOOD_OPTIONS[key] = (chain, info)
+        return chain, info, None
+    except Exception as exc:
+        log.warning("Option chain fetch failed for %s: %s", ticker, exc)
+    if key in _LAST_GOOD_OPTIONS:
+        chain, info = _LAST_GOOD_OPTIONS[key]
+        return chain, info, (f"Fetch failed for {ticker} options; showing the chain fetched "
+                             f"{info['quote_time'].tz_convert(SGT):%d %b %Y %H:%M} SGT.")
+    return pd.DataFrame(), {}, f"Fetch failed for {ticker} options; no earlier copy is available."
+
+
 # ---------- Shiller CAPE data: saved by hand ----------
 
 # Robert J. Shiller's "Irrational Exuberance" monthly data (shillerdata.com). Shiller updates it monthly and his

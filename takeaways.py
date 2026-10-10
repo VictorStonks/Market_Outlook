@@ -281,3 +281,32 @@ def summarise_cape_fit(cape_now: float, expected: float, model_label: str, r2: f
     text += ", so today is outside the fitted data." if above == 0 else \
         ", so today is at the edge of the fitted data." if above < 0.05 * len(sample_capes) else "."
     return ReturnsSummary({"expected": expected}, asof, (today - asof).days > MAX_AGE_DAYS["M"], text)
+
+
+def summarise_options(ticker: str, scope: str, calls: float, puts: float, top_call: float | None,
+                      top_put: float | None, spot: float, unit: str, asof: pd.Timestamp, *,
+                      max_pain: float | None = None, gex_total: float | None = None, flip: float | None = None,
+                      today: pd.Timestamp | None = None) -> ReturnsSummary:
+    """Open interest across the strikes shown: call and put totals, put/call ratio, the strikes with the most OI, and,
+    when given, max pain and dealer gamma (labelled as resting on the dealer convention). Describes positioning
+    only; it never says where the price will go (DESIGN.md 8). `returns` holds {"put_call": ratio}."""
+    today = today or pd.Timestamp.today().normalize()
+    ratio = puts / calls if calls > 0 else float("nan")
+    text = (f"{ticker} options, {scope}: {fmt_num(calls, 0)} call and {fmt_num(puts, 0)} put contracts open "
+            f"(put/call {fmt_num(ratio, 2)})")
+    if top_call is not None and top_put is not None:
+        text += f"; most call OI at {fmt_num(top_call, 2, unit)}, most put OI at {fmt_num(top_put, 2, unit)}"
+    text += "."
+    if max_pain is not None:
+        gap = (max_pain / spot - 1) * 100
+        where = "at the last price" if round(abs(gap), 1) == 0 else \
+            f"{fmt_num(abs(gap), 1, '%')} {'above' if gap > 0 else 'below'} the last price"
+        text += f" Max pain is {fmt_num(max_pain, 2, unit)}, {where} of {fmt_num(spot, 2, unit)}."
+    if gex_total is not None:
+        size = abs(gex_total)
+        amount = f"{fmt_num(size / 1e9, 2)}bn" if size >= 1e9 else f"{fmt_num(size / 1e6, 1)}m"
+        sign = MINUS if gex_total < 0 else "+"
+        text += f" Under the dealer convention, net dealer gamma is {sign}{amount}{unit} per 1% move"
+        text += f" and changes sign at {fmt_num(flip, 2, unit)}." if flip is not None else \
+            " and does not change sign within the range shown."
+    return ReturnsSummary({"put_call": ratio}, asof, (today - asof).days > MAX_AGE_DAYS["D"], text)

@@ -16,11 +16,12 @@ import cape
 import correlation
 import countries
 import data
+import options
 import sectors
 import theme
 import valuation
 from takeaways import (MAX_AGE_DAYS, ReturnsSummary, Summary, TakeawaySpec, summarise, summarise_cape_fit,
-                       summarise_corr_matrix,
+                       summarise_corr_matrix, summarise_options,
                        summarise_country_returns,
                        summarise_pe_comparison, summarise_pe_screen, summarise_returns, summarise_sector_returns,
                        summarise_sector_table)
@@ -415,6 +416,213 @@ def render_stock_row(lookback_years: int, ma_window: int | None) -> None:
         picked = render_stock_price_panel(lookback_years, ma_window, universe, prices, ticker_of)
     with right:
         render_normalised_panel(lookback_years, ma_window, universe, prices, ticker_of, picked)
+    if added:  # a new ticker: rerun the page so every other stock box offers it too
+        st.rerun(scope="app")
+
+
+# ---------- Equities: options open interest ----------
+
+OPT_DEFAULT = "AAPL"
+OPT_RATE = "DGS3MO"                    # FRED 3-month Treasury bill: the risk-free rate in the gamma calculation
+OPT_MAX_PAIN, OPT_FLIP = "Max pain", "Gamma flip"
+OPT_HOW_OI = (
+    "- **Left: price.** The stock's daily close over the chosen period. **Right: open interest.** For each strike, the "
+    "number of call (amber) and put (blue) contracts still open, side by side. Both parts share one price axis, so a "
+    "bar sits at its strike's price next to the price line. Strikes within ±25% of the last price are shown (wider "
+    "if the price history is wider).\n"
+    "- **Open interest is not direction.** Every open contract has a buyer and a seller, and Yahoo does not say "
+    "which side is customers or dealers. A tall call bar means many contracts are open at that strike, not that "
+    "people are bullish.\n"
+    "- **Expiry.** One expiry, or all listed expiries added together. The default is the nearest standard monthly "
+    "expiry (third Friday), usually the one with the most open interest.\n"
+    f"- **{OPT_MAX_PAIN}** (pill, single expiry only): the settlement price, among the listed strikes, at which all "
+    "the expiry's calls and puts together would pay their holders the least at expiry. Calculation: for each strike "
+    "as a test price, add up call open interest × max(price − strike, 0) plus put open interest × max(strike − "
+    "price, 0), × 100 shares, and take the lowest. Assumptions: every contract is held to expiry, open interest "
+    "stays as it is today, and every strike in the chain counts (not only those shown).\n"
+    "- **How to use max pain.** Read it as a reference level: where today's open options would be worth least in "
+    "total. Some traders watch for prices settling near it in the last days before expiry; the evidence for that is "
+    "mixed, and this panel does not claim it. It moves as open interest changes, and it means little for an expiry "
+    "with little open interest.\n"
+    "- **Dotted line:** the last price Yahoo reported with the option chain."
+)
+OPT_HOW_GEX = (
+    "- **What it shows.** With the toggle on, bars show dealer gamma exposure (GEX) per strike in USD per 1% move "
+    "of the stock: how many dollars of stock dealers would need to buy or sell to stay hedged when the stock moves "
+    "1%, if the assumption below holds.\n"
+    "- **The assumption (SqueezeMetrics convention).** Open interest does not say who is long. The convention "
+    "assumes dealers (market makers) are **long every call**, because investors mostly sell calls (covered calls, "
+    "overwriting), and **short every put**, because investors mostly buy puts as protection. So call gamma counts "
+    "as positive (amber, right of zero) and put gamma as negative (blue, left of zero). The diamond is the net per "
+    "strike. When the real positioning differs (e.g. investors buying calls in a rally), the sign and size are wrong.\n"
+    "- **Calculation.** Per contract: Black-Scholes gamma × open interest × 100 shares × price² × 1%. Gamma uses "
+    f"Yahoo's implied volatility for each contract, the 3-month T-bill rate (FRED {OPT_RATE}) and no dividends. "
+    "Contracts whose implied volatility Yahoo shows as near zero or above 500% (stale quotes) are left out and "
+    "counted in the footer.\n"
+    f"- **{OPT_FLIP}** (pill): the price at which total dealer GEX, recomputed at that price, changes sign. Above it "
+    "net dealer gamma is positive, below it negative (nearest crossing to the last price within the range shown).\n"
+    "- **How to read it.** The reasoning behind the convention: with positive net gamma, dealers hedging would sell "
+    "into rises and buy into falls, which leans against price moves; with negative net gamma, hedging goes with the "
+    "move. The total in the takeaway is the sum across all strikes and the chosen expiries. Treat it as a model of "
+    "positioning under an assumption, not an observation, and not a signal on its own."
+)
+OPT_CAVEAT = ("Open interest is a daily snapshot that the exchanges publish after each session, so it describes "
+              "positions at the previous close; Yahoo keeps no history of it. Yahoo lists options only for US "
+              "listings. One contract = 100 shares.")
+
+
+def _opt_expiry_label(e: pd.Timestamp, today: dt.date) -> str:
+    days = (e.date() - today).days
+    return f"{e:%d %b %Y} · {'today' if days == 0 else f'{days} day' + ('s' if days != 1 else '')}"
+
+
+def _opt_rate(notes: list[str]) -> float:
+    """Risk-free rate (decimal) for the gamma calculation: latest FRED 3-month T-bill yield, else 0 with a note."""
+    rate, notice = data.load_series(OPT_RATE, 1)
+    _warn_all([notice] if notice else [])
+    rate = rate.dropna()
+    if rate.empty:
+        notes.append(f"FRED {OPT_RATE} unavailable: gamma uses a 0% risk-free rate.")
+        return 0.0
+    return float(rate.iloc[-1]) / 100
+
+
+def _opt_raw(oi: pd.DataFrame, chain: pd.DataFrame, single: bool, gex: options.Gex | None, unit: str) -> pd.DataFrame:
+    raw = oi.rename(columns={"calls": "Call OI", "puts": "Put OI"})
+    if single:
+        iv = chain.pivot_table(index="strike", columns="type", values="iv", aggfunc="mean") * 100
+        raw["Call IV (%)"] = iv.get("call")
+        raw["Put IV (%)"] = iv.get("put")
+    if gex is not None:
+        g = gex.by_strike.reindex(raw.index)
+        cur = unit.strip()
+        raw[f"Call GEX ({cur} per 1%)"], raw[f"Put GEX ({cur} per 1%)"], raw[f"Net GEX ({cur} per 1%)"] = \
+            g["calls"], g["puts"], g["net"]
+    raw.index.name = f"Strike ({unit.strip()})"
+    return raw.reset_index()
+
+
+@st.fragment
+def render_options_panel() -> None:
+    """Open interest by strike for one stock beside its price, on one shared price axis, with max pain and, behind a
+    toggle, dealer gamma exposure under the SqueezeMetrics convention (DESIGN.md 14, "Options open interest")."""
+    title = "Options open interest"
+    with st.container(border=True):
+        head = st.container()  # filled after the controls so the takeaway can use the loaded data
+        _, prices, ticker_of, added = _stock_options("close", [("opt_sel", False)])
+        col_s, col_e = st.columns(2)
+        with col_s:
+            ticker = _pe_select("opt_sel", ticker_of, default=OPT_DEFAULT)
+        expiries = data.option_expiries(ticker) if ticker else []
+        today = pd.Timestamp.now(tz=data.US_EASTERN).date()
+        with col_e:
+            choices = [*expiries, options.ALL_EXPIRIES]
+            monthly = options.standard_monthly(expiries)
+            picked = st.selectbox(
+                "Expiry", choices, key=f"opt_exp_{ticker}", disabled=not expiries,
+                index=choices.index(monthly) if monthly is not None else 0,
+                format_func=lambda e: e if isinstance(e, str) else _opt_expiry_label(e, today),
+                help="Default: the nearest standard monthly expiry (third Friday). All expiries adds every listed "
+                     "expiry together; max pain is then not shown, because it is defined for one expiry.")
+        single = picked != options.ALL_EXPIRIES
+        st.session_state.setdefault("opt_history", options.DEFAULT_HISTORY)
+        col_h, col_g, col_l = st.columns([1, 1, 1])
+        with col_h:
+            st.segmented_control("Price history", tuple(options.HISTORY), key="opt_history",
+                                 on_change=_keep_selection, args=("opt_history", options.DEFAULT_HISTORY))
+        with col_g:
+            gex_on = st.toggle("Dealer gamma (GEX convention)", key="opt_gex",
+                               help="Off: open interest as reported. On: assumes dealers are long calls and short "
+                                    "puts (SqueezeMetrics) and shows their gamma exposure per strike. See 'Dealer "
+                                    "gamma' below the chart.")
+        with col_l:
+            line_options = [o for o, show in ((OPT_MAX_PAIN, single), (OPT_FLIP, gex_on)) if show]
+            lines = st.pills("Lines", line_options, selection_mode="multi", default=line_options,
+                             key=f"opt_lines_{int(single)}{int(gex_on)}",
+                             help="Max pain needs a single expiry; gamma flip needs the GEX toggle.") \
+                if line_options else []
+
+        def empty(message: str, notes: tuple[str, ...] = ()) -> None:
+            with head:
+                theme.panel_header(title, "Contracts by strike · daily snapshot")
+            st.info(message)
+            theme.panel_footer(STOCK_SOURCE, "Daily snapshot", None, caveat=" ".join([*notes, OPT_CAVEAT]))
+
+        if not ticker:
+            return empty("No stock prices available." if not ticker_of else "Select a stock.")
+        if not expiries:
+            return empty(f"Yahoo Finance lists no options for {ticker}. Option chains are available for US-listed "
+                         "stocks and ETFs only.")
+        chain, info, notice = data.load_options(ticker, expiries if not single else [picked])
+        if notice:
+            st.warning(notice)
+        if chain.empty or float(chain["oi"].sum()) <= 0:
+            return empty(f"Yahoo returned no open interest for {ticker} for this expiry." if not chain.empty
+                         else f"No option data for {ticker}.")
+
+        spot, unit = float(info["spot"]), f" {info['currency']}"
+        asof = pd.Timestamp(info["quote_time"].tz_convert(data.US_EASTERN).date())
+        close = prices[ticker].dropna() if ticker in prices else pd.Series(dtype=float)
+        history = close.loc[close.index > close.index[-1] - pd.DateOffset(months=options.HISTORY[
+            st.session_state["opt_history"]])] if not close.empty else close
+        lo, hi = options.strike_window(spot, history)
+        oi = options.by_strike(chain)
+        shown = oi.loc[(oi.index >= lo) & (oi.index <= hi)]
+
+        notes: list[str] = []
+        mp = options.max_pain(oi) if single else None
+        gex = None
+        if gex_on:
+            gex = options.dealer_gex(chain, spot, pd.Timestamp.now(tz="UTC"), _opt_rate(notes), (lo, hi))
+            if gex.excluded:
+                notes.append(f"{gex.excluded:,} contracts with open interest have no usable implied volatility and "
+                             "are left out of GEX.")
+        scope = f"expiring {picked:%d %b %Y}" if single else f"all {len(expiries)} expiries"
+        sm = summarise_options(ticker, scope, float(oi["calls"].sum()), float(oi["puts"].sum()),
+                               float(oi["calls"].idxmax()) if oi["calls"].max() > 0 else None,
+                               float(oi["puts"].idxmax()) if oi["puts"].max() > 0 else None,
+                               spot, unit, asof, max_pain=mp, gex_total=gex.total if gex else None,
+                               flip=gex.flip if gex else None)
+        subtitle = (f"{unit.strip()} per 1% move, dealer gamma by strike (assumed: dealers long calls, short puts)"
+                    if gex_on else "Contracts open by strike") + f" · {unit.strip()} price · daily snapshot"
+        with head:
+            theme.panel_header(title, subtitle, sm.text)
+
+        levels = [(f"Last {theme.fmt_num(spot, 2)}", spot, "dot")]
+        if mp is not None and OPT_MAX_PAIN in lines:
+            if lo <= mp <= hi:
+                levels.append((f"Max pain {theme.fmt_num(mp, 2)}", mp, "dash"))
+            else:
+                notes.append(f"Max pain ({theme.fmt_num(mp, 2, unit)}) is outside the price range shown.")
+        if gex is not None and gex.flip is not None and OPT_FLIP in lines:
+            levels.append((f"Gamma flip {theme.fmt_num(gex.flip, 2)}", gex.flip, "dashdot"))
+        if gex is not None:
+            g = gex.by_strike.loc[(gex.by_strike.index >= lo) & (gex.by_strike.index <= hi)]
+            bars = g[["calls", "puts"]].rename(columns={"calls": "Calls (dealer long)", "puts": "Puts (dealer short)"})
+            fig = theme.oi_profile_fig(history, bars, y_range=(lo, hi), levels=levels, axis_decimals=0, net=g["net"],
+                                       unit=unit, x_title=f"Dealer gamma ({unit.strip()} per 1% move)")
+        else:
+            bars = shown.rename(columns={"calls": "Calls", "puts": "Puts"})
+            fig = theme.oi_profile_fig(history, bars, y_range=(lo, hi), levels=levels, axis_decimals=0,
+                                       unit=unit, x_title="Open interest (contracts)")
+        theme.render(fig, key="opt_profile")
+        with st.expander("How to read this chart: open interest and max pain"):
+            st.markdown(OPT_HOW_OI)
+        with st.expander("Dealer gamma (GEX): the assumption and how to read it"):
+            st.markdown(OPT_HOW_GEX)
+
+        if history.empty:
+            notes.append(f"No saved price history for {ticker}.")
+        if gex_on:
+            notes.append("GEX assumes dealers are long all calls and short all puts (SqueezeMetrics convention); "
+                         "actual dealer positions are not published.")
+        theme.panel_footer(STOCK_SOURCE, "Daily snapshot (open interest as of the previous session)", asof,
+                           stale=sm.stale, caveat=" ".join([*notes, OPT_CAVEAT]))
+        with st.expander("Raw data"):
+            raw = _opt_raw(shown, chain, single, gex, unit)
+            st.dataframe(raw, hide_index=True, width="stretch", column_config={
+                c: st.column_config.NumberColumn(format="%.2f" if "Strike" in c or "IV" in c else "localized")
+                for c in raw.columns})
     if added:  # a new ticker: rerun the page so every other stock box offers it too
         st.rerun(scope="app")
 
