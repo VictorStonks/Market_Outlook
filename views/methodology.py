@@ -139,6 +139,31 @@ st.markdown(
     "counts weekly."
 )
 
+st.subheader("Shiller CAPE and expected 10-year return, TAA page", anchor=False)
+st.markdown(
+    "Source: Robert J. Shiller's *Irrational Exuberance* data (shillerdata.com), monthly from 1871, saved as "
+    "`cache/shiller_ie_data.csv` and replaced by hand every month or two (Shiller updates it monthly).\n"
+    "- **CAPE** (cyclically adjusted P/E): the S&P 500's real price over its 10-year average of real earnings, as "
+    "computed by Shiller. Monthly prices are the average of the month's daily closes.\n"
+    "- **Live CAPE.** Between file updates, today's value is the latest S&P 500 close (Yahoo, ^GSPC) over Shiller's "
+    "10-year average of real earnings, restated to the newest CPI (FRED CPIAUCNS, the CPI Shiller uses, when it is at "
+    "least as recent as his file). The 10-year average barely moves in a few months, so this tracks Shiller's own "
+    "figure closely. Earnings come only from Shiller: the Equities page's EPS data is forward-looking and "
+    "mostly adjusted (non-GAAP), so it would not be comparable.\n"
+    "- **Band.** Mean, ±1σ and ±2σ of monthly CAPE over the chosen period (full history, since 1950 or since 2000).\n"
+    "- **Regression.** Each month's CAPE against the annualized real total return of the S&P 500 over the following "
+    "10 years (Shiller's column: dividends reinvested, after inflation), fitted by ordinary least squares. Linear "
+    "fits a straight line in CAPE; earnings yield fits a straight line in 1/CAPE. Only months with 10 complete years "
+    "after them are used, so the latest starting point is 10 years old.\n"
+    "- **Expected 10Y real return.** The fitted line's value at today's live CAPE. Nominal adds today's 10-year "
+    "breakeven inflation (FRED T10YIE): (1 + real) × (1 + inflation) − 1. The typical miss is the standard "
+    "deviation of actual returns around the line.\n"
+    "- **Caveats.** Neighbouring months share most of their 10-year window, so the points are far from independent "
+    "and no significance test is shown. When today's CAPE is near or above the highest starting points, the line is "
+    "extended beyond the data, and the linear and earnings-yield fits disagree most. A statistical relationship, "
+    "not a forecast of any one decade, and not investment advice."
+)
+
 st.subheader("Conventions", anchor=False)
 st.markdown(
     "- **Dates.** Data as-of dates are observation dates. The refresh time under each page title is in "

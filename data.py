@@ -23,6 +23,7 @@ import streamlit as st
 import yfinance as yf
 from fredapi import Fred
 
+import cape
 import countries
 import valuation
 
@@ -850,6 +851,31 @@ def fx_to_usd(currency: str | None) -> float | None:
         log.warning("FX fetch failed for %s: %s", currency, exc)
         return None
     return rate / divisor if rate > 0 else None
+
+
+# ---------- Shiller CAPE data: saved by hand ----------
+
+# Robert J. Shiller's "Irrational Exuberance" monthly data (shillerdata.com). Shiller updates it monthly and his
+# download link changes, so it is not fetched: the owner replaces this file every month or two. Parsed by cape.parse.
+SHILLER_FILE = Path(__file__).parent / "cache" / "shiller_ie_data.csv"
+
+
+@st.cache_data
+def _read_shiller(saved_at: float) -> pd.DataFrame:
+    """Parse the saved Shiller file; `saved_at` (its mtime) is part of the cache key."""
+    return cape.parse(SHILLER_FILE.read_text(encoding="utf-8-sig"))
+
+
+def load_shiller() -> tuple[pd.DataFrame, str | None]:
+    """Shiller's monthly data (see cape.parse); never raises. Empty frame and a notice when the file is missing or
+    unreadable (DESIGN.md 5.4)."""
+    try:
+        return _read_shiller(SHILLER_FILE.stat().st_mtime), None
+    except FileNotFoundError:
+        return pd.DataFrame(), f"Shiller data not found: save ie_data.csv from shillerdata.com as {SHILLER_FILE.name} in cache/."
+    except Exception as exc:
+        log.warning("Shiller file unreadable: %s", exc)
+        return pd.DataFrame(), f"Shiller data in cache/{SHILLER_FILE.name} could not be read ({exc})."
 
 
 @st.cache_data(ttl=3600)

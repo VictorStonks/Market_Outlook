@@ -263,3 +263,21 @@ def summarise_pe_comparison(label: str, level: float, others: Mapping[str, float
     if parts:
         text += ", " + " and ".join(parts)
     return ReturnsSummary(premiums, asof, (today - asof).days > MAX_AGE_DAYS["D"], text + ".")
+
+
+def summarise_cape_fit(cape_now: float, expected: float, model_label: str, r2: float, start: pd.Timestamp,
+                       end: pd.Timestamp, sample_capes: pd.Series, asof: pd.Timestamp,
+                       today: pd.Timestamp | None = None) -> ReturnsSummary:
+    """One sentence on the CAPE regression: the expected 10-year real return the fitted line gives at today's CAPE,
+    and how many of the fit's starting months had a CAPE at or above today's. Owner-approved exception to "describes,
+    never forecasts" (DESIGN.md 14, "CAPE"): the number is labelled as a regression-implied expectation, never advice.
+    `returns` holds {"expected": %}."""
+    today = today or pd.Timestamp.today().normalize()
+    above = int((sample_capes >= cape_now).sum())
+    model = model_label[:1].lower() + model_label[1:]  # "Earnings yield (1/CAPE)" -> "earnings yield (1/CAPE)"
+    text = (f"At a CAPE of {fmt_num(cape_now, 1, 'x')}, the {model} fit over {start:%b %Y}–{end:%b %Y} "
+            f"(R² {fmt_num(r2, 2)}) gives an expected real return of {fmt_num(expected, 1, '%')} a year over the next "
+            f"10 years. {above:,} of {len(sample_capes):,} starting months had a CAPE this high or higher")
+    text += ", so today is outside the fitted data." if above == 0 else \
+        ", so today is at the edge of the fitted data." if above < 0.05 * len(sample_capes) else "."
+    return ReturnsSummary({"expected": expected}, asof, (today - asof).days > MAX_AGE_DAYS["M"], text)

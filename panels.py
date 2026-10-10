@@ -8,16 +8,19 @@ from __future__ import annotations
 import datetime as dt
 from dataclasses import dataclass, field, replace
 
+import numpy as np
 import pandas as pd
 import streamlit as st
 
+import cape
 import correlation
 import countries
 import data
 import sectors
 import theme
 import valuation
-from takeaways import (ReturnsSummary, Summary, TakeawaySpec, summarise, summarise_corr_matrix,
+from takeaways import (MAX_AGE_DAYS, ReturnsSummary, Summary, TakeawaySpec, summarise, summarise_cape_fit,
+                       summarise_corr_matrix,
                        summarise_country_returns,
                        summarise_pe_comparison, summarise_pe_screen, summarise_returns, summarise_sector_returns,
                        summarise_sector_table)
@@ -1393,3 +1396,199 @@ def render_country_table_panel() -> None:
         _country_footer(prices.index[-1] if available else None, bool(sm and sm.stale),
                         "Gains use the up colour and losses the down colour; the darkest cell in each column is "
                         "that column's largest move.")
+
+
+# ---------- TAA: Shiller CAPE panels ----------
+
+CAPE_SOURCE = "Robert J. Shiller, Irrational Exuberance data (shillerdata.com); S&P 500 close and CPI for the live value"
+CAPE_TAKEAWAY = TakeawaySpec("Shiller CAPE", unit="x", decimals=1, freq="M", change_days=28, change_label="1M")
+CAPE_CPI = "CPIAUCNS"                  # the CPI Shiller uses: CPI-U, all items, not seasonally adjusted
+CAPE_BREAKEVEN = "T10YIE"              # 10-year breakeven inflation, for the nominal line under the KPI
+CAPE_HOW_TO_READ = (
+    "- **Each dot is one month in history.** Across: the CAPE that month. Up: the real (after-inflation) total "
+    "return, % a year, that US stocks then delivered over the following 10 years.\n"
+    "- **The pattern.** Dots slope down: starting from a high CAPE, the next decade's returns have tended to be "
+    "lower. The spread of dots shows how loose that tendency is; R² is the share of the variation the line explains.\n"
+    "- **The amber line** is the fitted relationship; its equation is printed above the chart. *Linear* is a straight "
+    "line in CAPE. *Earnings yield (1/CAPE)* fits a straight line in 1/CAPE, which draws as a curve that flattens at "
+    "high CAPE levels.\n"
+    "- **The diamond** is today's live CAPE, read off the line. Its height is the expected 10-year real return on the "
+    "card above. The dotted vertical line marks today's CAPE among the historical dots: if few dots lie to its right, "
+    "the line is being extended beyond the data, and the estimate is less reliable.\n"
+    "- **Typical miss.** Actual 10-year returns sat about that far (one standard deviation) above or below the line in "
+    "history, so read the card as the centre of a wide range, not a point forecast.\n"
+    "- **The latest dot is 10 years old.** A month only gets a dot once its next 10 years are complete."
+)
+
+
+def _cape_live(shiller: pd.DataFrame, notes: list[str]) -> tuple[float, pd.Timestamp]:
+    """Today's CAPE and its date: the latest S&P 500 close over Shiller's 10-year real earnings average, rolled
+    forward with the newest CPI (FRED when it is at least as recent as Shiller's last month). Falls back to Shiller's
+    latest monthly CAPE when no newer close is saved. Adds footer notes."""
+    last = shiller.dropna(subset=["cape"])
+    last_month, last_cape = last.index[-1], float(last["cape"].iloc[-1])
+    index_px, index_notice = data.load_index_prices()
+    cpi, cpi_notice = data.load_series(CAPE_CPI, 2)
+    _warn_all([n for n in (index_notice, cpi_notice) if n])
+    close = index_px["US"].dropna() if "US" in index_px else pd.Series(dtype=float)
+    if close.empty or close.index[-1] < last_month:
+        notes.append(f"No newer S&P 500 close is saved, so the value shown is Shiller's {last_month:%b %Y} CAPE.")
+        return last_cape, last_month
+    cpi = cpi.dropna()
+    shiller_cpi = shiller["cpi"].dropna()
+    if not cpi.empty and cpi.index[-1] >= shiller_cpi.index[-1]:
+        cpi_now, cpi_note = float(cpi.iloc[-1]), f"FRED {CAPE_CPI} for {cpi.index[-1]:%b %Y}"
+    else:
+        cpi_now, cpi_note = float(shiller_cpi.iloc[-1]), f"Shiller's CPI for {shiller_cpi.index[-1]:%b %Y}"
+    value = cape.live_cape(shiller, float(close.iloc[-1]), cpi_now)
+    last_e = shiller["earnings"].dropna().index[-1]
+    notes.append(f"Live CAPE = S&P 500 close on {close.index[-1]:%d %b %Y} over Shiller's 10-year average of real "
+                 f"earnings (reported to {last_e:%b %Y}), restated with {cpi_note}. Shiller's monthly CAPE uses the "
+                 "month's average price, so the two differ slightly.")
+    return value, close.index[-1]
+
+
+def _cape_sample_pills(key: str) -> str:
+    st.session_state.setdefault(key, cape.DEFAULT_SAMPLE)
+    st.segmented_control("Period", tuple(cape.SAMPLES), key=key, on_change=_keep_selection,
+                         args=(key, cape.DEFAULT_SAMPLE))
+    return st.session_state[key]
+
+
+def _cape_band_panel(shiller: pd.DataFrame, cape_now: float, live_date: pd.Timestamp, live_notes: list[str]) -> None:
+    """Shiller CAPE history against its mean and ±1σ / ±2σ bands over the chosen period, with today's live value
+    as a KPI tile and as the line's last point."""
+    title = "Shiller CAPE"
+    subtitle = "x · S&P 500 real price over 10-year average real earnings · monthly, live last point"
+    with st.container(border=True):
+        head = st.container()
+        kpi = st.container()  # the KPI sits above the pills, filled once the period's mean is known
+        period = _cape_sample_pills("cape_band_sample")
+        monthly = cape.sample(shiller, period)["cape"].dropna()
+        series = monthly.copy()
+        if live_date > series.index[-1]:
+            series.loc[live_date] = cape_now
+        mean, sd = float(series.mean()), float(series.std())
+        sm = summarise(series, CAPE_TAKEAWAY)
+        with head:
+            theme.panel_header(title, subtitle, sm.text if sm else NO_SUMMARY)
+        with kpi:
+            theme.metric_tile(f"CAPE, live · vs {period.lower()} mean", cape_now, cape_now - mean, decimals=1,
+                              unit="x", help=f"{period} mean {theme.fmt_num(mean, 1, 'x')}; today is "
+                                             f"{theme.fmt_signed((cape_now - mean) / sd, 1)}σ from it.")
+        fig = theme.band_fig("Shiller CAPE", series, k=(1, 2), unit="x", decimals=1, height=400)
+        fig.update_xaxes(tickformat="%Y")  # 150 years: "Jan 81" would be ambiguous
+        theme.render(fig, key="cape_band")
+        last_month = shiller["cape"].dropna().index[-1]
+        stale = (pd.Timestamp.today().normalize() - last_month).days > MAX_AGE_DAYS["M"]
+        notes = [*live_notes, f"Bands are the {period.lower()} mean ±1σ and ±2σ ({series.index[0]:%b %Y} onwards)."]
+        if stale:
+            notes.append(f"Shiller's file ends {last_month:%b %Y}: download a newer ie_data from shillerdata.com and "
+                         "save it as cache/shiller_ie_data.csv.")
+        theme.panel_footer(CAPE_SOURCE, "Monthly (live last point daily)", live_date, stale=stale,
+                           caveat=" ".join(notes))
+        with st.expander("Raw data"):
+            st.dataframe(_raw_table(monthly.to_frame("Shiller CAPE"), "x", 2), width="stretch")
+
+
+def _cape_fit_panel(shiller: pd.DataFrame, cape_now: float, live_date: pd.Timestamp) -> None:
+    """Scatter of each month's CAPE against the next 10 years' annualized real total return, with a fitted line
+    (linear or 1/CAPE, a toggle) over the chosen period, and the line's value at today's CAPE as a KPI tile."""
+    title = "CAPE vs next 10 years' real return"
+    subtitle = "% a year, real total return · x CAPE · monthly starting points"
+    with st.container(border=True):
+        head = st.container()
+        kpi = st.container()  # the KPI sits above the controls, filled once the fit is known
+        st.session_state.setdefault("cape_model", cape.DEFAULT_MODEL)
+        col_m, col_s = st.columns(2)
+        with col_m:
+            st.segmented_control("Fit", tuple(cape.MODELS), key="cape_model", on_change=_keep_selection,
+                                 args=("cape_model", cape.DEFAULT_MODEL),
+                                 help="Linear: a straight line in CAPE. Earnings yield: a straight line in 1/CAPE, "
+                                      "which flattens at high CAPE levels.")
+        with col_s:
+            period = _cape_sample_pills("cape_fit_sample")
+        model_label = st.session_state["cape_model"]
+        rows = cape.sample(shiller, period)
+        fit = cape.fit(rows, cape.MODELS[model_label])
+        if fit is None:
+            with head:
+                theme.panel_header(title, subtitle, NO_SUMMARY)
+            st.info("Not enough months with a complete 10-year forward return in this period.")
+            theme.panel_footer(CAPE_SOURCE, "Monthly", live_date)
+            return
+
+        points = rows.dropna(subset=["cape", "fwd10_real"])
+        expected = float(fit.predict(cape_now))
+        sm = summarise_cape_fit(cape_now, expected, model_label, fit.r2, fit.start, fit.end, points["cape"],
+                                shiller["cape"].dropna().index[-1])
+        with head:
+            theme.panel_header(title, subtitle, sm.text)
+        with kpi:
+            theme.metric_tile("Expected 10Y real return (regression-implied)", expected, decimals=1, unit="% a year",
+                              help=f"The fitted line's value at today's CAPE of {theme.fmt_num(cape_now, 1, 'x')}. "
+                                   "Real = after inflation; total return = dividends reinvested.")
+            breakeven, be_notice = data.load_series(CAPE_BREAKEVEN, 1)
+            _warn_all([be_notice] if be_notice else [])
+            be = breakeven.dropna()
+            if be.empty:
+                nominal_text = f"Nominal: {theme.MISSING} (breakeven inflation unavailable)"
+            else:
+                nominal_text = (f"Nominal ≈ **{theme.fmt_num(cape.nominal(expected, float(be.iloc[-1])), 1, '%')} a "
+                                f"year**, adding 10Y breakeven inflation of {theme.fmt_num(float(be.iloc[-1]), 2, '%')} "
+                                f"(FRED {CAPE_BREAKEVEN}, {be.index[-1]:%d %b %Y})")
+            st.markdown(f"{nominal_text} · typical miss ±{theme.fmt_num(fit.resid_sd, 1)} pp · "
+                        f"R² {theme.fmt_num(fit.r2, 2)}")
+
+        st.caption(f"Fitted line: {fit.equation()}")
+        grid = np.linspace(points["cape"].min(), max(points["cape"].max(), cape_now) * 1.03, 120)
+        theme.render(theme.scatter_fit_fig(
+            points["cape"], points["fwd10_real"], fit_x=grid, fit_y=fit.predict(grid), point=(cape_now, expected),
+            labels=points.index.strftime("%b %Y"), fit_name=f"{model_label} fit", point_name="Today (live CAPE)",
+            points_name="Monthly starting points", x_title="CAPE at the start of the 10 years", x_unit="x", unit="%",
+            height=400), key="cape_fit")
+        with st.expander("How to read this chart"):
+            st.markdown(CAPE_HOW_TO_READ)
+
+        notes = [
+            f"{fit.n:,} monthly starting points, {fit.start:%b %Y}–{fit.end:%b %Y}; a month needs 10 complete years "
+            "after it.",
+            "Neighbouring months share most of their 10-year window, so the points are not independent: R² describes "
+            "the fit, and no significance test is shown.",
+            f"Typical miss = standard deviation of actual returns around the line ({theme.fmt_num(fit.resid_sd, 1)} pp).",
+        ]
+        if cape_now > fit.cape_max:
+            notes.append(f"Today's CAPE is above every starting point in this period (max "
+                         f"{theme.fmt_num(fit.cape_max, 1, 'x')}), so the line is extended beyond the data.")
+        years = (fit.end - fit.start).days / 365.25
+        if years < 30:
+            notes.append(f"Short period: {years:.0f} years of starting points cover only "
+                         f"{int(years // 10) + 1} non-overlapping 10-year outcomes, so the fit rests on very few "
+                         "independent observations.")
+        notes.append("Expected = the fitted line's value; actual decades have varied widely around it. Not investment "
+                     "advice.")
+        theme.panel_footer(CAPE_SOURCE, "Monthly", shiller["cape"].dropna().index[-1], stale=sm.stale,
+                           caveat=" ".join(notes))
+        with st.expander("Raw data"):
+            raw = points[["cape", "fwd10_real"]].rename(columns={"cape": "CAPE (x)",
+                                                                  "fwd10_real": "Next 10Y real return (% a year)"})
+            st.dataframe(_raw_table(raw, "", 2), width="stretch")
+
+
+@st.fragment
+def render_cape_row() -> None:
+    """TAA page: Shiller CAPE against its history (left) and the CAPE-to-next-10-year-return regression with its
+    expected return (right). Both use the same live CAPE."""
+    shiller, notice = data.load_shiller()
+    if notice:
+        st.warning(notice)
+    if shiller.empty or shiller["cape"].dropna().empty:
+        st.info("No Shiller CAPE data to show.")
+        return
+    live_notes: list[str] = []
+    cape_now, live_date = _cape_live(shiller, live_notes)
+    left, right = st.columns(2)
+    with left:
+        _cape_band_panel(shiller, cape_now, live_date, live_notes)
+    with right:
+        _cape_fit_panel(shiller, cape_now, live_date)

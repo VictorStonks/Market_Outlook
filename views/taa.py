@@ -1,9 +1,13 @@
-"""TAA scorecard: placeholder. The scoring methodology is undecided; do not invent one (DESIGN.md section 12)."""
+"""TAA scorecard: US equity valuation (Shiller CAPE and its regression on the next 10 years' real return), then the
+scorecard placeholder. The scoring methodology is undecided; do not invent one (DESIGN.md section 12)."""
 import streamlit as st
 
 import panels
 
 panels.page_header("TAA scorecard")
+panels.render_cape_row()  # Shiller CAPE vs history (left), CAPE vs next 10Y real return and its expected return (right)
+
+st.subheader("Scorecard", anchor=False)
 st.info("Not built yet: the scoring methodology has not been decided.")
 st.markdown(
     "Fixed by the design guide:\n"

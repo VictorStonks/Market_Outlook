@@ -77,6 +77,16 @@ with st.container(border=True):
     change = pd.DataFrame({k: latest - v for k, v in curves.items() if k != "Latest"})
     theme.render(theme.bar_fig(change, unit="%", x_title="Maturity (years)"), key="sg_bar")
 
+with st.container(border=True):
+    theme.panel_header("Scatter with fit", "Observations, fitted line and today's point")
+    rng = np.random.default_rng(7)
+    xs = rng.uniform(8, 40, 300)
+    ys = 13 - 0.37 * xs + rng.normal(0, 4, 300)
+    grid = np.linspace(xs.min(), 45, 50)
+    theme.render(theme.scatter_fit_fig(xs, ys, fit_x=grid, fit_y=13 - 0.37 * grid, point=(42, 13 - 0.37 * 42),
+                                       x_title="CAPE", x_unit="x", unit="%"), key="sg_scatter")
+    theme.panel_footer("Synthetic", "Monthly", days[-1])
+
 # ---------- What changed ----------
 st.subheader("What changed", anchor=False)
 lines = whats_changed({"10Y–2Y spread": sm, "BB OAS": summarise(credit["US BB"], TakeawaySpec("BB OAS", unit="%"))} if sm else {})

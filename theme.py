@@ -407,6 +407,40 @@ def corr_heatmap_fig(
     return fig
 
 
+def scatter_fit_fig(
+    x: Sequence[float], y: Sequence[float], *, fit_x: Sequence[float], fit_y: Sequence[float],
+    point: tuple[float, float] | None = None, labels: Sequence[str] | None = None, fit_name: str = "Fit",
+    point_name: str = "Today", points_name: str = "Observations", x_title: str = "", x_unit: str = "",
+    unit: str = "", decimals: int = 1, height: int = 400,
+) -> go.Figure:
+    """Scatter of observations with a fitted line (DESIGN.md 6.2 "relationship between two measures"). Points are
+    categorical series 2 at low opacity so the fit (accent) reads on top; `point` marks today's x and its fitted y
+    with an accent diamond and a dotted vertical guide. `labels` (e.g. dates) head each point's hover."""
+    t = tokens()
+    fig = _base_fig(height, unit, decimals)
+    fig.update_layout(hovermode="closest")
+    fig.update_xaxes(title_text=x_title, title_font=dict(color=t["text2"]), ticksuffix=x_unit, showspikes=False)
+    fig.update_yaxes(title_text=None)
+    head = "%{text}<br>" if labels is not None else ""
+    fig.add_trace(go.Scatter(
+        x=list(x), y=list(y), mode="markers", name=points_name, text=list(labels) if labels is not None else None,
+        marker=dict(color=_rgba(categorical_colors(2)[1], 0.35), size=4, line=dict(width=0)),
+        hovertemplate=f"{head}%{{x:,.{decimals}f}}{x_unit} · %{{y:,.{decimals}f}}{unit}<extra></extra>",
+    ))
+    fig.add_trace(go.Scatter(
+        x=list(fit_x), y=list(fit_y), mode="lines", name=fit_name, line=dict(color=t["accent"], width=2),
+        hovertemplate=f"%{{x:,.{decimals}f}}{x_unit} → %{{y:,.{decimals}f}}{unit}<extra>{fit_name}</extra>",
+    ))
+    if point is not None:
+        fig.add_vline(x=point[0], line_color=t["muted"], line_width=1, line_dash="dot", layer="below")
+        fig.add_trace(go.Scatter(
+            x=[point[0]], y=[point[1]], mode="markers", name=point_name,
+            marker=dict(color=t["accent"], size=12, symbol="diamond", line=dict(color=t["text"], width=1)),
+            hovertemplate=f"{point_name}: %{{x:,.{decimals}f}}{x_unit} → %{{y:,.{decimals}f}}{unit}<extra></extra>",
+        ))
+    return fig
+
+
 def add_recessions(fig: go.Figure, usrec: pd.Series, x_min, x_max) -> None:
     """Shade NBER recessions (FRED USREC: monthly, 1 = recession) as muted bands under the lines.
     Clipped to [x_min, x_max] so the shading never stretches the x-axis beyond the data."""
