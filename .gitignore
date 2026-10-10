@@ -7,3 +7,4 @@ _backup/
 .vscode/
 Market Outlook.docx
 .streamlit/secrets.toml
+cache/custom/

@@ -430,8 +430,13 @@ _eps_lock = threading.Lock()
 _eps_state: dict = {"force": False, "failed_at": None}
 
 
+def _safe_name(ticker: str) -> str:
+    return re.sub(r"[^A-Za-z0-9._-]", "_", ticker)
+
+
 def _eps_path(ticker: str) -> Path:
-    return EPS_DIR / f"{re.sub(r'[^A-Za-z0-9._-]', '_', ticker)}.json"
+    """Added (non-S&P 500) tickers keep their EPS apart from the constituents', so the bulk files stay S&P-only."""
+    return (CUSTOM_EPS_DIR if ticker in added_tickers() else EPS_DIR) / f"{_safe_name(ticker)}.json"
 
 
 def _report_lag_days(ticker: yf.Ticker, report_dates: pd.DatetimeIndex) -> int:
@@ -475,8 +480,8 @@ def _fetch_and_save_eps(ticker: str) -> dict:
             if attempt == 1:
                 raise
             time.sleep(1.5)
-    EPS_DIR.mkdir(parents=True, exist_ok=True)
     path = _eps_path(ticker)
+    path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".tmp")
     tmp.write_text(json.dumps(eps), encoding="utf-8")
     for attempt in range(4):  # Windows can briefly lock the target (virus scanner, another reader)
@@ -589,6 +594,264 @@ def load_ntm_eps() -> tuple[pd.DataFrame, list[str], str | None]:
     return eps, marker["failed"], f"EPS download failed; showing saved EPS from {saved:%d %b %Y}."
 
 
+# ---------- Added tickers: any Yahoo ticker outside the S&P 500, saved locally ----------
+
+# The default universe is the S&P 500. Any other Yahoo Finance ticker (D05.SI, 7203.T, ASML.AS) typed into an Equities
+# search box is downloaded once, saved under cache/custom/ and offered in every stock box from then on. The registry
+# (tickers.json) holds each ticker's name, trading currency, the currency of its financial statements, exchange time
+# zone and shares outstanding (refreshed weekly). Prices are one parquet per ticker with `close` and `adj_close`, 10Y
+# daily like the S&P files, in the listing's own currency, refreshed when over a day old ("Refresh data" forces it).
+CUSTOM_DIR = Path(__file__).parent / "cache" / "custom"
+CUSTOM_REGISTRY = CUSTOM_DIR / "tickers.json"
+CUSTOM_PRICE_DIR = CUSTOM_DIR / "prices"
+CUSTOM_EPS_DIR = CUSTOM_DIR / "eps"
+CUSTOM_META_MAX_AGE = dt.timedelta(days=7)
+_LOCAL_CLOSE = dt.time(18, 0)  # non-US exchanges: local time after which today's bar is final (all major ones close earlier)
+_TICKER_RE = re.compile(r"^[A-Z0-9^][A-Z0-9.\-=^&]{0,19}$")
+_MINOR_UNITS = {"GBp": ("GBP", 100), "GBX": ("GBP", 100), "ZAc": ("ZAR", 100), "ILA": ("ILS", 100)}  # quoted in cents
+_custom_lock = threading.Lock()
+_custom_state: dict = {"force": False, "failed_at": None}
+_registry_memo: dict = {"mtime": None, "data": {}}
+
+
+def added_tickers() -> dict[str, dict]:
+    """Registry of added tickers: {ticker: metadata}. Read-only; memoised on the file's mtime. Not st.cache_data,
+    because the EPS bulk download calls it from worker threads."""
+    try:
+        mtime = CUSTOM_REGISTRY.stat().st_mtime
+    except OSError:
+        return {}
+    if _registry_memo["mtime"] != mtime:
+        try:
+            _registry_memo.update(mtime=mtime, data=json.loads(CUSTOM_REGISTRY.read_text(encoding="utf-8")))
+        except (OSError, ValueError) as exc:
+            log.warning("Added-ticker registry unreadable: %s", exc)
+            return {}
+    return _registry_memo["data"]
+
+
+def _write_atomic(path: Path, write: Callable[[Path], None]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".tmp")
+    write(tmp)
+    for attempt in range(4):  # Windows can briefly lock the target (virus scanner, another reader)
+        try:
+            tmp.replace(path)
+            return
+        except PermissionError:
+            if attempt == 3:
+                raise
+            time.sleep(0.3)
+
+
+def _write_registry(registry: dict[str, dict]) -> None:
+    _write_atomic(CUSTOM_REGISTRY, lambda p: p.write_text(json.dumps(registry, indent=1, sort_keys=True),
+                                                          encoding="utf-8"))
+
+
+def ticker_currency(ticker: str) -> str:
+    """Trading currency: USD for S&P 500 stocks, Yahoo's quote currency for added ones ("?" when unknown)."""
+    meta = added_tickers().get(ticker)
+    return (meta.get("currency") or "?") if meta else "USD"
+
+
+def major_currency(currency: str | None) -> tuple[str | None, int]:
+    """(major currency, quote units per major unit): ("GBP", 100) for prices quoted in pence (GBp), else (currency, 1)."""
+    return _MINOR_UNITS.get(currency, (currency, 1)) if currency else (None, 1)
+
+
+def ticker_tz(ticker: str) -> str:
+    """Exchange time zone: New York for S&P 500 stocks, Yahoo's exchange time zone for added ones."""
+    return (added_tickers().get(ticker) or {}).get("tz") or "America/New_York"
+
+
+def normalise_ticker(text: str, known: set[str] = frozenset()) -> str | None:
+    """Typed text -> Yahoo ticker, or None when it cannot be one. Upper-cases, takes the ticker from a pasted
+    "AAPL — Apple Inc." label, and maps BRK.B to the S&P list's BRK-B form when that is a constituent."""
+    t = str(text).split(" — ")[0].strip().upper()
+    if not _TICKER_RE.match(t):
+        return None
+    dashed = t.replace(".", "-")
+    return dashed if dashed != t and dashed in known else t
+
+
+def _fetch_meta(ticker: str) -> dict:
+    """Name, currencies, time zone and share count from Yahoo; falls back to fast_info when `info` fails."""
+    try:
+        info = yf.Ticker(ticker).info or {}
+    except Exception as exc:
+        log.warning("Yahoo info failed for %s: %s", ticker, exc)
+        info = {}
+    if not info.get("currency"):
+        try:
+            fast = yf.Ticker(ticker).fast_info
+            info = {"currency": fast.get("currency"), "exchangeTimezoneName": fast.get("timezone"), **info}
+        except Exception as exc:
+            log.warning("Yahoo fast_info failed for %s: %s", ticker, exc)
+    shares = info.get("sharesOutstanding")
+    return {
+        "name": info.get("longName") or info.get("shortName") or ticker,
+        "currency": info.get("currency"), "financial_currency": info.get("financialCurrency"),
+        "tz": info.get("exchangeTimezoneName"), "exchange": info.get("fullExchangeName") or info.get("exchange"),
+        "shares": float(shares) if shares and shares > 0 else None,
+        "meta_at": dt.datetime.now().isoformat(timespec="seconds"),
+    }
+
+
+def _drop_open_local(frame: pd.DataFrame, tz: str | None, now: pd.Timestamp | None = None) -> pd.DataFrame:
+    """_drop_open_bar on the listing's own exchange clock: US listings final at 16:00 New York, others at 18:00 local."""
+    tz = tz or "America/New_York"
+    local = (now if now is not None else pd.Timestamp.now(tz="UTC")).tz_convert(ZoneInfo(tz))
+    if local.time() >= (_US_CLOSE if tz.startswith("America/") else _LOCAL_CLOSE):
+        return frame
+    return frame.loc[frame.index < local.normalize().tz_localize(None)]
+
+
+def _download_added_prices(tz_of: dict[str, str | None]) -> dict[str, pd.DataFrame]:
+    """{ticker: dates x (close, adj_close)} for the tickers Yahoo returned prices for; one Yahoo call for all."""
+    raw = yf.download(list(tz_of), period=f"{PRICE_YEARS}y", interval="1d", auto_adjust=False, progress=False,
+                      threads=True)
+    if raw.empty:
+        return {}
+    if raw.index.tz is not None:
+        raw.index = raw.index.tz_localize(None)
+    out = {}
+    for t, tz in tz_of.items():
+        try:
+            frame = pd.DataFrame({kind: raw[field][t] for kind, field in _PRICE_FIELDS.items()})
+        except KeyError:
+            continue
+        frame = _drop_open_local(frame.dropna(how="all").sort_index(), tz)
+        if not frame["close"].dropna().empty:
+            out[t] = frame
+    return out
+
+
+def _added_price_path(ticker: str) -> Path:
+    return CUSTOM_PRICE_DIR / f"{_safe_name(ticker)}.parquet"
+
+
+def _save_added_prices(frames: dict[str, pd.DataFrame]) -> None:
+    for t, frame in frames.items():
+        _write_atomic(_added_price_path(t), frame.to_parquet)
+
+
+def add_ticker(text: str) -> tuple[str | None, str | None]:
+    """Resolve a typed ticker; never raises. An S&P 500 or already-added ticker returns at once, with no download.
+    Otherwise its metadata and 10Y of prices are downloaded and saved. Returns (ticker, None) or (None, message)."""
+    universe, _ = load_universe()
+    known = set(universe["ticker"])
+    t = normalise_ticker(text, known)
+    if t is None:
+        return None, (f"“{str(text).strip()}” is not a Yahoo Finance ticker. Non-US listings need the exchange "
+                      "suffix, e.g. D05.SI (SGX), 7203.T (Tokyo), 0700.HK (Hong Kong), ASML.AS (Amsterdam).")
+    if t in known or t in added_tickers():
+        return t, None
+    with _custom_lock:
+        try:
+            meta = _fetch_meta(t)
+            frames = _download_added_prices({t: meta["tz"]})
+        except Exception as exc:  # network, rate limit, unknown ticker
+            log.warning("Adding %s failed: %s", t, exc)
+            frames = {}
+        if t not in frames:
+            return None, (f"Yahoo Finance has no prices for {t}. Check the ticker and its exchange suffix "
+                          "(e.g. D05.SI for DBS on SGX).")
+        _save_added_prices(frames)
+        _write_registry({**added_tickers(), t: meta})
+    return t, None
+
+
+def _added_due(force: bool) -> list[str]:
+    """Added tickers whose saved prices are missing, over a day old, or all of them when a refresh is forced."""
+    due = []
+    for t in added_tickers():
+        path = _added_price_path(t)
+        if force or not path.exists() or \
+                dt.datetime.now() - dt.datetime.fromtimestamp(path.stat().st_mtime) > PRICE_MAX_AGE:
+            due.append(t)
+    return due
+
+
+def _refresh_added() -> None:
+    """Re-download due prices (and week-old metadata). Saves whatever succeeded, then raises if any ticker failed,
+    so _ensure_saved records the failure and the panels show the saved prices with a notice."""
+    registry = dict(added_tickers())
+    due = _added_due(_custom_state["force"])
+    for t in due:
+        if dt.datetime.now() - dt.datetime.fromisoformat(registry[t]["meta_at"]) > CUSTOM_META_MAX_AGE:
+            fresh = _fetch_meta(t)
+            registry[t] = fresh if fresh["currency"] else {**registry[t], "meta_at": fresh["meta_at"]}
+    frames = _download_added_prices({t: registry[t].get("tz") for t in due})
+    _save_added_prices(frames)
+    _write_registry(registry)
+    if failed := sorted(set(due) - set(frames)):
+        raise ValueError(f"no prices for {', '.join(failed)}")
+
+
+def _added_current() -> bool:
+    return not _added_due(False)
+
+
+@st.cache_data
+def _read_added(kind: str, stamps: tuple[tuple[str, float], ...]) -> pd.DataFrame:
+    """Saved prices of every added ticker (dates x tickers); `stamps` (ticker, mtime) is the cache key."""
+    cols = {t: pd.read_parquet(_added_price_path(t))[kind] for t, _ in stamps}
+    return pd.DataFrame(cols).sort_index() if cols else pd.DataFrame()
+
+
+def load_added_prices(kind: str = "close") -> tuple[pd.DataFrame, str | None]:
+    """Daily prices of the added tickers (dates x tickers, local currency); never raises. Empty when none were added.
+    Notice is None unless a due download failed, then it says what is shown instead (DESIGN.md 5.4)."""
+    if kind not in _PRICE_FIELDS:
+        raise ValueError(f"kind must be one of {tuple(_PRICE_FIELDS)}, got {kind!r}")
+    if not added_tickers():
+        return pd.DataFrame(), None
+    ok = _ensure_saved(_custom_state, _custom_lock, _added_current, _refresh_added, "Added-ticker price",
+                       "Updating prices for the added tickers (Yahoo Finance)…")
+    stamps = tuple((t, p.stat().st_mtime) for t in sorted(added_tickers()) if (p := _added_price_path(t)).exists())
+    try:
+        prices = _read_added(kind, stamps)
+    except Exception as exc:
+        log.warning("Saved added-ticker prices unusable: %s", exc)
+        return pd.DataFrame(), "Price download failed for the added tickers; no saved prices available."
+    if ok:
+        return prices, None
+    return prices, "Price update failed for some added tickers; showing their saved prices."
+
+
+def load_stock_prices(kind: str = "close") -> tuple[pd.DataFrame, list[str]]:
+    """S&P 500 prices joined with the added tickers' (dates x tickers), and any fallback notices. The date index is
+    the union of every market's trading days, so take a stock's own series with .dropna(). S&P-wide aggregates
+    (sector and index P/E) must keep using load_prices, whose rows are all US trading days."""
+    sp, sp_notice = load_prices(kind)
+    added, added_notice = load_added_prices(kind)
+    notices = [n for n in (sp_notice, added_notice) if n]
+    added = added.drop(columns=added.columns.intersection(sp.columns))  # a ticker that has since joined the S&P 500
+    if added.empty:
+        return sp, notices
+    return pd.concat([sp, added], axis=1).sort_index(), notices
+
+
+@st.cache_data(ttl=86400)
+def fx_to_usd(currency: str | None) -> float | None:
+    """USD per one unit of `currency` (cents-quoted currencies such as GBp included), from Yahoo's latest FX close.
+    None when the rate cannot be fetched."""
+    if not currency or currency == "?":
+        return None
+    base, divisor = major_currency(currency)
+    base = base.upper()
+    if base == "USD":
+        return 1.0 / divisor
+    try:
+        raw = yf.download(f"{base}USD=X", period="10d", interval="1d", auto_adjust=False, progress=False)
+        rate = float(raw["Close"].dropna().iloc[-1].squeeze())
+    except Exception as exc:
+        log.warning("FX fetch failed for %s: %s", currency, exc)
+        return None
+    return rate / divisor if rate > 0 else None
+
+
 @st.cache_data(ttl=3600)
 def refreshed_at() -> pd.Timestamp:
     """SGT wall-clock time this cache generation was created; resets when the cache is cleared."""
@@ -599,6 +862,7 @@ def refresh() -> None:
     st.cache_data.clear()
     _price_state["force"] = True  # the next price load re-downloads, whatever the age of the saved files
     _index_state["force"] = True
+    _custom_state["force"] = True
 
 
 def moving_average(data: pd.Series, window: int) -> pd.Series:

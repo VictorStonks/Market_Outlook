@@ -289,29 +289,64 @@ def render_grid(specs: list[PanelSpec], lookback_years: int, ma_window: int | No
 
 MAX_STOCKS = 6                         # categorical palette limit (DESIGN.md 3.2)
 DEFAULT_STOCKS = ("AAPL", "MSFT", "NVDA")
-STOCK_UNIT = " USD"                    # theme formats a unit as a suffix (axis ticks, hover, takeaway)
 STOCK_SOURCE = "Yahoo Finance via yfinance"
-STOCK_TAKEAWAY = TakeawaySpec("", unit=STOCK_UNIT, decimals=2, freq="D", change_days=30, change_label="1M")
-STOCK_CAVEAT = "Dividends are not included in the price. The universe is today's S&P 500 constituents."
+STOCK_TAKEAWAY = TakeawaySpec("", unit=" USD", decimals=2, freq="D", change_days=30, change_label="1M")
+STOCK_CAVEAT = ("Dividends are not included in the price. Default universe: today's S&P 500 constituents; other "
+                "Yahoo tickers can be typed in and are priced in their listing's currency.")
 REBASE_TO = 100.0                      # every rebased line starts at this value on the base date
+UNIVERSE_NOTE = (":material/info: Default universe: S&P 500 constituents. To add any other stock, type its Yahoo "
+                 "Finance ticker into a stock search box (e.g. D05.SI, 7203.T, 0700.HK, ASML.AS); it is saved and "
+                 "offered in every stock box on this page. Forward P/E comparisons use S&P 500 averages, so a stock "
+                 "outside the S&P 500 is compared with the S&P 500 average.")
+SEARCH_HELP = ("Type a ticker or company name. Any other Yahoo Finance ticker can be typed in and added, with its "
+               "exchange suffix (e.g. D05.SI for DBS on SGX).")
 
 
-def _stock_picker(key: str) -> tuple[pd.DataFrame, pd.DataFrame, list[str], bool]:
-    """Top of a stock panel: load the S&P 500 list and the saved close prices (warning on any fallback), then
-    show the panel's own search box. Returns (universe, prices, selected tickers, any stock available)."""
-    universe, universe_notice = data.load_universe()
-    prices, price_notice = data.load_prices("close")
-    _warn_all([n for n in (universe_notice, price_notice) if n])
-
-    listed = universe[universe["ticker"].isin(prices.columns)]  # only stocks we hold prices for
+def _ticker_labels(universe: pd.DataFrame, prices: pd.DataFrame) -> dict[str, str]:
+    """{search-box label: ticker} for every S&P 500 or added stock we hold prices for, sorted by ticker."""
+    listed = universe[universe["ticker"].isin(prices.columns)]
     ticker_of = dict(zip(listed["label"], listed["ticker"]))
-    label_of = dict(zip(listed["ticker"], listed["label"]))
-    picked = st.multiselect(
-        "Search stocks", list(ticker_of), default=[label_of[t] for t in DEFAULT_STOCKS if t in label_of],
-        max_selections=MAX_STOCKS, key=key, placeholder="Ticker or company name",
-        help=f"Type a ticker or company name. Up to {MAX_STOCKS} stocks.",
-    )
-    return universe, prices, [ticker_of[label] for label in picked], not listed.empty
+    for t, meta in data.added_tickers().items():
+        if t in prices.columns and t not in ticker_of.values():
+            ticker_of[f"{t} — {meta.get('name') or t}"] = t
+    return dict(sorted(ticker_of.items(), key=lambda kv: kv[1]))
+
+
+def _stock_options(kind: str, boxes: list[tuple[str, bool]]) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, str], bool]:
+    """Load the S&P 500 list and prices joined with the added tickers (warning on any fallback), and resolve text
+    typed into the search boxes `boxes` [(session key, multi-select?)] before they are drawn: a new Yahoo ticker is
+    downloaded and saved, and the box's value is rewritten to its label; a failure shows a warning and drops the
+    text (a single box goes back to its last stock). Returns (universe, prices, {label: ticker}, ticker added?)."""
+    universe, universe_notice = data.load_universe()
+    prices, notices = data.load_stock_prices(kind)
+    _warn_all([n for n in (universe_notice, *notices) if n])
+    ticker_of = _ticker_labels(universe, prices)
+
+    typed: dict[str, str | None] = {}  # typed text -> ticker (None when it failed)
+    for key, multi in boxes:
+        value = st.session_state.get(key)
+        for text in (value or []) if multi else [value]:
+            if text is not None and text not in ticker_of and text not in typed:
+                with st.spinner(f"Loading {text} from Yahoo Finance…"):
+                    typed[text], error = data.add_ticker(text)
+                if error:
+                    st.warning(error)
+    if not typed:
+        return universe, prices, ticker_of, False
+
+    added = any(t and t not in ticker_of.values() for t in typed.values())
+    if added:
+        prices, _ = data.load_stock_prices(kind)
+        ticker_of = _ticker_labels(universe, prices)
+    label_of = {t: label for label, t in ticker_of.items()}
+    for key, multi in boxes:
+        value = st.session_state.get(key)
+        if multi and value:
+            labels = [text if text in ticker_of else label_of.get(typed.get(text)) for text in value]
+            st.session_state[key] = list(dict.fromkeys(label for label in labels if label))  # drop failures, repeats
+        elif not multi and value is not None and value not in ticker_of:
+            st.session_state[key] = label_of.get(typed.get(value)) or st.session_state.get(f"_{key}_good")
+    return universe, prices, ticker_of, added
 
 
 def _window_series(prices: pd.DataFrame, tickers: list[str], lookback_years: int) -> dict[str, pd.Series]:
@@ -347,41 +382,100 @@ def _stock_footer(universe: pd.DataFrame, prices: pd.DataFrame, asof, stale: boo
                        caveat=" ".join(filter(None, [*notes, STOCK_CAVEAT, yahoo_gaps])))
 
 
+def _stock_multiselect(key: str, ticker_of: dict[str, str], on_change=None) -> list[str]:
+    """Multi-stock search box over the S&P 500 and added tickers; any other Yahoo ticker can be typed in (resolved
+    by _stock_options on the next run). Returns the chosen tickers."""
+    picked = st.multiselect(
+        "Search stocks", list(ticker_of), max_selections=MAX_STOCKS, key=key, on_change=on_change,
+        accept_new_options=True, placeholder="Ticker or company name", help=f"{SEARCH_HELP} Up to {MAX_STOCKS} stocks.",
+    )
+    return [ticker_of[label] for label in picked if label in ticker_of]
+
+
+def _mark_norm_custom() -> None:
+    st.session_state["stock_norm_custom"] = True
+
+
+def _reset_norm() -> None:
+    st.session_state["stock_norm_custom"] = False
+
+
 @st.fragment
-def render_stock_price_panel(lookback_years: int, ma_window: int | None) -> None:
-    """Search S&P 500 stocks by ticker or company name and compare their closing prices over the sidebar
-    lookback, on one shared price axis (DESIGN.md 5.2 anatomy, 6.2 "How do related series compare")."""
-    title, subtitle = "Stock price", "USD per share · split-adjusted close · daily"
+def render_stock_row(lookback_years: int, ma_window: int | None) -> None:
+    """Stock price (left) and normalised price (right), side by side. One fragment, so the normalised panel follows
+    the stocks chosen on the left until the user picks its own, as the forward P/E pair does."""
+    universe, prices, ticker_of, added = _stock_options("close", [("stock_price_sel", True), ("stock_norm_sel", True)])
+    label_of = {t: label for label, t in ticker_of.items()}
+    st.session_state.setdefault("stock_price_sel", [label_of[t] for t in DEFAULT_STOCKS if t in label_of])
+    left, right = st.columns(2)  # two-column grid, as on Rates & Credit (DESIGN.md 4)
+    with left:
+        picked = render_stock_price_panel(lookback_years, ma_window, universe, prices, ticker_of)
+    with right:
+        render_normalised_panel(lookback_years, ma_window, universe, prices, ticker_of, picked)
+    if added:  # a new ticker: rerun the page so every other stock box offers it too
+        st.rerun(scope="app")
+
+
+def _currency_names(series: dict[str, pd.Series]) -> tuple[dict[str, str], str | None]:
+    """Trading currency per stock, and the one shared currency (None when the stocks are in different currencies)."""
+    currency = {t: data.ticker_currency(t) for t in series}
+    shared = set(currency.values())
+    return currency, shared.pop() if len(shared) == 1 else None
+
+
+def render_stock_price_panel(lookback_years: int, ma_window: int | None, universe: pd.DataFrame,
+                             prices: pd.DataFrame, ticker_of: dict[str, str]) -> list[str]:
+    """Search stocks by ticker or company name and compare their closing prices over the sidebar lookback, on one
+    shared price axis (DESIGN.md 5.2 anatomy, 6.2 "How do related series compare"). Each stock is in its listing's
+    own currency; with mixed currencies the currency moves from the axis into each legend name. Returns the labels
+    chosen, for the normalised panel to follow."""
+    title = "Stock price"
     with st.container(border=True):
         head = st.container()  # filled after the control so the takeaway can use the loaded data
-        universe, prices, tickers, available = _stock_picker("stock_price_sel")
+        tickers = _stock_multiselect("stock_price_sel", ticker_of)
         series = _window_series(prices, tickers, lookback_years)
-        sm = None
+        currency, shared = _currency_names(series)
+        unit = f" {shared}" if shared else ""
+        subtitle = f"{shared or 'Local currency (see legend)'} per share · split-adjusted close · daily"
+        sm, notes = None, []
         if series:
             lead = next(iter(series))
-            sm = summarise(series[lead], replace(STOCK_TAKEAWAY, label=lead))
+            sm = summarise(series[lead], replace(STOCK_TAKEAWAY, label=lead, unit=f" {currency[lead]}"))
+        if not shared and series:
+            notes.append("Each line is in its listing's currency (shown in the legend), so price levels in different "
+                         "currencies are not directly comparable.")
         with head:
             theme.panel_header(title, subtitle, (sm.text if sm else NO_SUMMARY) if series else "")
 
+        named = {t if shared else f"{t} ({currency[t]})": s for t, s in series.items()}
         if series:
             plot, dashed = _stock_lines(prices, series, ma_window)
-            theme.render(theme.line_fig(plot, dashed=dashed, unit=STOCK_UNIT, decimals=2), key="stock_price")
-        _stock_empty_state(available, tickers, series)
-        _stock_footer(universe, prices, _asof(sm, series), bool(sm and sm.stale))
+            if not shared:
+                plot = named  # mixed currencies means several stocks, so there is no moving average to rename
+            theme.render(theme.line_fig(plot, dashed=dashed, unit=unit, decimals=2), key="stock_price")
+        _stock_empty_state(bool(ticker_of), tickers, series)
+        _stock_footer(universe, prices, _asof(sm, series), bool(sm and sm.stale), *notes)
         if series:
             with st.expander("Raw data"):
-                st.dataframe(_raw_table(pd.concat(series, axis=1), STOCK_UNIT, 2), width="stretch")
+                st.dataframe(_raw_table(pd.concat(named, axis=1), unit, 2), width="stretch")
+    return st.session_state.get("stock_price_sel", [])
 
 
-@st.fragment
-def render_normalised_panel(lookback_years: int, ma_window: int | None) -> None:
+def render_normalised_panel(lookback_years: int, ma_window: int | None, universe: pd.DataFrame,
+                            prices: pd.DataFrame, ticker_of: dict[str, str], follow: list[str]) -> None:
     """The stock price panel's companion: the same closes rebased to 100 on a common base date, so different
-    price levels compare as % change (DESIGN.md 6.2 "Relative performance")."""
+    price levels (and currencies) compare as % change (DESIGN.md 6.2 "Relative performance"). Its stocks follow
+    the stock price panel until the user picks others here; the button returns to following."""
     title = "Normalised price"
     subtitle = f"Index, base date = {REBASE_TO:g} · split-adjusted close · daily"
+    if not st.session_state.get("stock_norm_custom"):
+        st.session_state["stock_norm_sel"] = list(follow)  # set before the widget is created
     with st.container(border=True):
         head = st.container()
-        universe, prices, tickers, available = _stock_picker("stock_norm_sel")
+        tickers = _stock_multiselect("stock_norm_sel", ticker_of, on_change=_mark_norm_custom)
+        if st.session_state.get("stock_norm_custom"):
+            st.button("Follow the chart on the left", icon=":material/link:", on_click=_reset_norm,
+                      key="stock_norm_reset")
         series = _window_series(prices, tickers, lookback_years)
 
         sm, notes, rebased, dashed, cut = None, [], {}, [], {}
@@ -390,7 +484,11 @@ def render_normalised_panel(lookback_years: int, ma_window: int | None) -> None:
             base_date = max(s.index[0] for s in series.values())
             cut = {t: s.loc[s.index >= base_date] for t, s in series.items()}
             notes.append(f"Base date {base_date:%d %b %Y} = {REBASE_TO:g}.")
-            if base_date > data.prices_window(prices, lookback_years).index[0]:  # a short-history stock trims the chart
+            if _currency_names(series)[1] is None:
+                notes.append("Each line is a return in its listing's own currency (no FX conversion).")
+            # A short-history stock trims the chart. A week's grace: markets on other holiday calendars may simply
+            # not trade on the window's first day.
+            if base_date > data.prices_window(prices, lookback_years).index[0] + pd.Timedelta(days=7):
                 late = [t for t, s in series.items() if s.index[0] == base_date]
                 notes.append(f"The chart starts later than the window because {', '.join(late)} "
                              "has no earlier prices in it.")
@@ -405,7 +503,7 @@ def render_normalised_panel(lookback_years: int, ma_window: int | None) -> None:
 
         if series:
             theme.render(theme.line_fig(rebased, dashed=dashed, decimals=1, baseline=REBASE_TO), key="stock_norm")
-        _stock_empty_state(available, tickers, series)
+        _stock_empty_state(bool(ticker_of), tickers, series)
         _stock_footer(universe, prices, _asof(sm, series), bool(sm and sm.stale), *notes)
         if series:
             with st.expander("Raw data"):
@@ -426,25 +524,51 @@ PE_CMP_CAVEAT = ("Averages are total market cap over total NTM earnings of the g
 PE_SP500 = "S&P 500"
 
 
-def _pe_frame(prices: pd.Series, reported: pd.Series, estimates: dict, lag_days: int):
+def _gap_days(ticker: str) -> tuple[int, int]:
+    """Quarter spacing accepted as unbroken: wider for added (non-US) tickers, see valuation.WIDE_GAP_DAYS."""
+    return valuation.WIDE_GAP_DAYS if ticker in data.added_tickers() else valuation._GAP_DAYS
+
+
+def _pe_frame(ticker: str, prices: pd.Series, reported: pd.Series, estimates: dict, lag_days: int):
     """(quarters, NTM EPS on every price date, NTM P/E) for one stock, full saved history."""
-    quarters = valuation.build_quarters(reported, estimates, lag_days)
+    quarters = valuation.build_quarters(reported, estimates, lag_days, _gap_days(ticker))
     eps = valuation.ntm_eps(quarters, prices.dropna().index)
     return quarters, eps, valuation.ntm_pe(prices, eps)
 
 
 def _pe_select(key: str, ticker_of: dict[str, str], *, default: str | None = None, on_change=None,
                label: str = "Search stock") -> str | None:
-    """Single-stock search box (ticker or company name). `default` is a ticker used only when the widget has no
-    value yet; returns the chosen ticker."""
+    """Single-stock search box (ticker or company name, or any Yahoo ticker typed in, resolved by _stock_options on
+    the next run). `default` is a ticker used only when the widget has no value yet; returns the chosen ticker."""
     labels = list(ticker_of)
     kwargs = {}
     if key not in st.session_state:
         kwargs["index"] = next((i for i, label in enumerate(labels) if ticker_of[label] == default), 0) \
             if labels else None
     picked = st.selectbox(label, labels, key=key, placeholder="Ticker or company name", on_change=on_change,
-                          help="Type a ticker or company name. One stock at a time.", **kwargs)
+                          accept_new_options=True, help=f"{SEARCH_HELP} One stock at a time.", **kwargs)
+    if picked in ticker_of:
+        st.session_state[f"_{key}_good"] = picked  # where the box goes back to if a typed ticker fails
     return ticker_of.get(picked)
+
+
+def _pe_close(prices: pd.DataFrame, ticker: str) -> pd.Series:
+    """A stock's closes for P/E work, in its currency's major unit: London prices quoted in pence (GBp) are divided by
+    100, because Yahoo reports their EPS in pounds. Charts keep the quoted unit."""
+    if ticker not in prices:
+        return pd.Series(dtype=float)
+    return prices[ticker].dropna() / data.major_currency(data.ticker_currency(ticker))[1]
+
+
+def _eps_currency_note(ticker: str) -> str | None:
+    """Footer note when Yahoo lists an added stock's financial statements in a different currency from its price:
+    EPS is used as Yahoo reports it, unconverted (owner's choice), so the P/E may be off by the exchange rate."""
+    meta = data.added_tickers().get(ticker) or {}
+    price_cur, eps_cur = data.major_currency(meta.get("currency"))[0], meta.get("financial_currency")
+    if not (price_cur and eps_cur) or price_cur == eps_cur:
+        return None
+    return (f"Yahoo lists {ticker}'s financial statements in {eps_cur} and its price in {price_cur}. EPS is used as "
+            "Yahoo reports it, without currency conversion, so this P/E may be off by the exchange rate.")
 
 
 def _negative_eps_message(ticker: str, latest_eps: float) -> None:
@@ -462,7 +586,7 @@ def _pe_stock(ticker: str, close: pd.Series):
         st.warning(notice)
     if close.empty or reported.empty:
         return None
-    return _pe_frame(close, reported, estimates, lag_days)
+    return _pe_frame(ticker, close, reported, estimates, lag_days)
 
 
 def _pe_cutoff(lookback_years: int) -> pd.Timestamp:
@@ -480,7 +604,7 @@ def _ntm_pe_history_panel(lookback_years: int, prices: pd.DataFrame, ticker_of: 
         sm, pe, notes, asof = None, pd.Series(dtype=float), [], None
 
         if ticker:
-            close = prices[ticker].dropna() if ticker in prices else pd.Series(dtype=float)
+            close = _pe_close(prices, ticker)
             built = _pe_stock(ticker, close)
             if built:
                 quarters, eps, full_pe = built
@@ -491,6 +615,8 @@ def _ntm_pe_history_panel(lookback_years: int, prices: pd.DataFrame, ticker_of: 
                     _negative_eps_message(ticker, eps.iloc[-1])
                     theme.panel_footer(STOCK_SOURCE, FREQ_NAMES["D"], asof, caveat=PE_CAVEAT)
                     return ticker
+                if note := _eps_currency_note(ticker):
+                    notes.append(note)
                 cutoff = _pe_cutoff(lookback_years)
                 pe = full_pe.loc[full_pe.index >= cutoff]
                 if len(pe) >= 8:
@@ -523,8 +649,10 @@ def _ntm_pe_history_panel(lookback_years: int, prices: pd.DataFrame, ticker_of: 
                            caveat=" ".join([*notes, PE_HIST_CAVEAT, PE_CAVEAT]))
         if len(pe) >= 8:
             with st.expander("Raw data"):
-                raw = pd.DataFrame({"Close (USD)": close.reindex(pe.index), "NTM EPS (USD)": eps.reindex(pe.index),
-                                    "NTM P/E (x)": pe})
+                cur = data.major_currency(data.ticker_currency(ticker))[0]
+                eps_cur = (data.added_tickers().get(ticker) or {}).get("financial_currency") or cur
+                raw = pd.DataFrame({f"Close ({cur})": close.reindex(pe.index),
+                                    f"NTM EPS ({eps_cur})": eps.reindex(pe.index), "NTM P/E (x)": pe})
                 st.dataframe(_raw_table(raw, "", 2), width="stretch")
     return ticker
 
@@ -537,10 +665,12 @@ def _reset_pe_cmp() -> None:
     st.session_state["ntm_cmp_custom"] = False
 
 
-def _ntm_pe_compare_panel(lookback_years: int, universe: pd.DataFrame, prices: pd.DataFrame,
+def _ntm_pe_compare_panel(lookback_years: int, universe: pd.DataFrame, prices: pd.DataFrame, sp_prices: pd.DataFrame,
                           ticker_of: dict[str, str], follow: str | None) -> None:
     """The same NTM P/E line against the stock's GICS sector average and the S&P 500 average (each a tick box).
-    The stock follows the history panel's choice until the user picks another here; the button returns to following."""
+    The stock follows the history panel's choice until the user picks another here; the button returns to following.
+    A stock outside the S&P 500 (the default universe) has no GICS sector, so it is compared with the S&P 500 only.
+    `prices` includes added tickers; the averages are built from `sp_prices` (S&P 500 only, US trading days)."""
     title, subtitle = "Forward P/E vs sector and S&P 500", "x · daily · market-cap weighted averages, negative EPS excluded"
     label_of = {t: label for label, t in ticker_of.items()}
     if not st.session_state.get("ntm_cmp_custom") and follow in label_of:
@@ -551,14 +681,23 @@ def _ntm_pe_compare_panel(lookback_years: int, universe: pd.DataFrame, prices: p
         if st.session_state.get("ntm_cmp_custom"):
             st.button("Follow the chart on the left", icon=":material/link:", on_click=_reset_pe_cmp,
                       key="ntm_cmp_reset")
+        in_sp = ticker is None or ticker in set(universe["ticker"])
         col_sector, col_sp = st.columns(2)
-        show_sector = col_sector.checkbox("Sector average (GICS)", value=True, key="ntm_cmp_sector")
+        show_sector = col_sector.checkbox(
+            "Sector average (GICS)", value=True, key="ntm_cmp_sector", disabled=not in_sp,
+            help=None if in_sp else "Only for S&P 500 stocks: sector averages are built from the S&P 500.",
+        ) and in_sp
         show_sp = col_sp.checkbox("S&P 500 average", value=True, key="ntm_cmp_sp")
 
         lines: dict[str, pd.Series] = {}
         notes, asof, sm, close = [], None, None, pd.Series(dtype=float)
+        if not in_sp:
+            notes.append(f"{ticker} is not in the S&P 500 (the default universe), so it is compared with the S&P 500 "
+                         "average only, not a sector average.")
+        if ticker and (note := _eps_currency_note(ticker)):
+            notes.append(note)
         if ticker:
-            close = prices[ticker].dropna() if ticker in prices else pd.Series(dtype=float)
+            close = _pe_close(prices, ticker)
             built = _pe_stock(ticker, close)
             if built:
                 _, eps, full_pe = built
@@ -572,7 +711,7 @@ def _ntm_pe_compare_panel(lookback_years: int, universe: pd.DataFrame, prices: p
                 cutoff = _pe_cutoff(lookback_years)
                 lines[ticker] = full_pe.loc[full_pe.index >= cutoff]
                 if show_sector or show_sp:
-                    lines.update(_pe_group_lines(universe, prices, ticker, cutoff, show_sector, show_sp, notes))
+                    lines.update(_pe_group_lines(universe, sp_prices, ticker, cutoff, show_sector, show_sp, notes))
 
         stock_pe = lines.get(ticker, pd.Series(dtype=float))
         if len(stock_pe) >= 8:
@@ -641,26 +780,74 @@ def _pe_group_lines(universe: pd.DataFrame, prices: pd.DataFrame, ticker: str, c
 def render_ntm_pe_row(lookback_years: int) -> None:
     """Forward P/E history (left) and its comparison with the sector and S&P 500 (right), side by side. One fragment,
     so choosing a stock on the left updates the right one, which follows it by default."""
-    universe, universe_notice = data.load_universe()
-    prices, price_notice = data.load_prices("close")
-    _warn_all([n for n in (universe_notice, price_notice) if n])
-    listed = universe[universe["ticker"].isin(prices.columns)]
-    ticker_of = dict(zip(listed["label"], listed["ticker"]))
+    universe, prices, ticker_of, added = _stock_options("close", [("ntm_pe_sel", False), ("ntm_cmp_sel", False)])
+    sp_prices, _ = data.load_prices("close")  # its notice was shown by _stock_options
     left, right = st.columns(2)
     with left:
         ticker = _ntm_pe_history_panel(lookback_years, prices, ticker_of)
     with right:
-        _ntm_pe_compare_panel(lookback_years, universe, prices, ticker_of, ticker)
+        _ntm_pe_compare_panel(lookback_years, universe, prices, sp_prices, ticker_of, ticker)
+    if added:  # a new ticker: rerun the page so every other stock box offers it too
+        st.rerun(scope="app")
 
 
 SCREEN_HEIGHT = 600                    # px; about 16 rows, the rest scroll inside the table
 SCREEN_SHADE_CAP = 0.95                # shading saturates at this quantile of each column, so outliers stay readable
 
 
-def _pe_screen_view(universe: pd.DataFrame, table: pd.DataFrame, query: str, sectors_picked: list[str]
-                    ) -> pd.DataFrame:
+NON_SP = "Non-S&P 500"                 # sector cell (and filter option) for added tickers in the P/E screen
+
+
+def _added_screen_rows(sp_prices: pd.DataFrame, eps_all: pd.DataFrame, shares: pd.Series, cutoff: pd.Timestamp,
+                       notes: list[str]) -> pd.DataFrame:
+    """P/E screen rows for the added (non-S&P 500) tickers, in the same columns as valuation.pe_screen plus name and
+    sector. Each uses its own closes and EPS; market cap is converted to USD at the latest Yahoo FX rate so the column
+    sorts with the S&P rows; sector P/E is the S&P 500 average (the default universe). Adds footer notes."""
+    added = data.added_tickers()
+    close_all, _ = data.load_added_prices("close")  # its notice was shown by _stock_options or the panel above
+    if not added or close_all.empty:
+        return pd.DataFrame()
+    sp_pe = float("nan")
+    if not (sp_prices.empty or eps_all.empty or shares.empty):
+        grp = valuation.group_ntm_pe(sp_prices.iloc[[-1]], eps_all.reindex(sp_prices.index).iloc[[-1]], shares)
+        sp_pe = float(grp["pe"].iloc[-1]) if not grp.empty else sp_pe
+    rows, no_fx, mixed = [], [], []
+    for t, meta in sorted(added.items()):
+        close = _pe_close(close_all, t)  # major unit (pence -> pounds), so P/E and the FX rate both use it
+        if close.empty:
+            continue
+        with st.spinner(f"Loading {t} EPS…"):
+            reported, estimates, lag_days, notice = data.load_eps(t)
+        eps = valuation.ntm_eps(valuation.build_quarters(reported, estimates, lag_days, _gap_days(t)), close.index) \
+            if not reported.empty else pd.Series(float("nan"), index=close.index)
+        one = valuation.pe_screen(close.to_frame(t), eps.to_frame(t), pd.Series({t: meta.get("shares")}, dtype=float),
+                                  pd.Series(dtype=object), cutoff)
+        fx = data.fx_to_usd(data.major_currency(meta.get("currency"))[0])
+        if fx is None:
+            no_fx.append(t)
+        if _eps_currency_note(t):
+            mixed.append(f"{t} ({meta['financial_currency']} vs {data.major_currency(meta['currency'])[0]})")
+        one["market_cap"] = one["market_cap"] * fx if fx is not None else float("nan")
+        one["sector_pe"] = sp_pe
+        rows.append(one.assign(name=meta.get("name") or t, sector=NON_SP))
+    if not rows:
+        return pd.DataFrame()
+    notes.append(f"{NON_SP} rows are tickers added from Yahoo Finance: market cap is converted to USD at the latest "
+                 "Yahoo FX rate, and Sector P/E shows the S&P 500 average.")
+    if no_fx:
+        notes.append(f"No FX rate for: {', '.join(no_fx)}, so market cap shows —.")
+    if mixed:
+        notes.append(f"EPS used unconverted where Yahoo's statement currency differs from the price currency, so the "
+                     f"P/E may be off by the exchange rate: {', '.join(mixed)}.")
+    return pd.concat(rows)
+
+
+def _pe_screen_view(universe: pd.DataFrame, table: pd.DataFrame, query: str, sectors_picked: list[str],
+                    added_rows: pd.DataFrame = pd.DataFrame()) -> pd.DataFrame:
     """Rows matching the search box and sector filter, largest market cap first, in the table's own units."""
     rows = universe.set_index("ticker")[["name", "sector"]].join(table, how="inner")
+    if not added_rows.empty:
+        rows = pd.concat([rows, added_rows.loc[~added_rows.index.isin(rows.index), rows.columns]])
     if sectors_picked:
         rows = rows[rows["sector"].isin(sectors_picked)]
     if query := query.strip():
@@ -688,39 +875,68 @@ def _pe_screen_csv(view: pd.DataFrame, cols: dict[str, str]) -> bytes:
     return view.reset_index().rename(columns=cols)[list(cols.values())].round(4).to_csv(index=False).encode("utf-8")
 
 
+def _pe_screen_add_button(query: str, universe: pd.DataFrame, view: pd.DataFrame) -> None:
+    """Under the screen's search box: when the text looks like a Yahoo ticker that is neither in the S&P 500 nor added
+    yet, offer to add it (it then shows as a row and in every stock box). Shown only when no row matches, or the text
+    has an exchange suffix or digits, so filtering by a company name does not keep offering a download."""
+    q = query.strip()
+    candidate = data.normalise_ticker(q, set(universe["ticker"])) if q else None
+    if not candidate or candidate in set(universe["ticker"]) or candidate in data.added_tickers():
+        return
+    if not (view.empty or "." in q or any(ch.isdigit() for ch in q)):
+        return
+    if st.button(f"Add {candidate} from Yahoo Finance", icon=":material/add:", key="pe_screen_add",
+                 help="Downloads this ticker's prices and EPS and adds it to the table and to every stock box."):
+        with st.spinner(f"Loading {candidate} from Yahoo Finance…"):
+            _, error = data.add_ticker(candidate)
+        if error:
+            st.warning(error)
+        else:
+            st.rerun(scope="app")
+
+
 @st.fragment
 def render_pe_screen_panel(lookback_years: int) -> None:
-    """Every S&P 500 stock in one sortable table: market cap, NTM P/E, how far that P/E is from its own average over the sidebar lookback (σ, as on the history chart's
-    bands) and the GICS sector's market-cap weighted NTM P/E. Search and sector filter above; click a column header
-    to sort it either way."""
+    """Every S&P 500 stock, plus any added tickers, in one sortable table: market cap, NTM P/E, how far that P/E is
+    from its own average over the sidebar lookback (σ, as on the history chart's bands) and the GICS sector's market-cap
+    weighted NTM P/E (S&P 500 average for added tickers). Search and sector filter above; a ticker not in the table
+    can be added from the search box; click a column header to sort it either way."""
     title = "Forward P/E screen"
     window = f"{lookback_years}Y"
-    subtitle = f"S&P 500 · USD bn and x (see column headers) · daily · σ over the {window} window"
+    subtitle = f"S&P 500 and added tickers · USD bn and x (see column headers) · daily · σ over the {window} window"
     with st.container(border=True):
         head = st.container()  # filled after the controls so the takeaway describes the rows shown
         universe, universe_notice = data.load_universe()
         prices, price_notice = data.load_prices("close")
+        _, added_notice = data.load_added_prices("close")
         eps_all, _, eps_notice = data.load_ntm_eps()
         shares, shares_notice = data.load_shares()
-        _warn_all([n for n in (universe_notice, price_notice, eps_notice, shares_notice) if n])
+        _warn_all([n for n in (universe_notice, price_notice, added_notice, eps_notice, shares_notice) if n])
 
         col_search, col_sector = st.columns([2, 3])
         query = col_search.text_input("Search", key="pe_screen_q", placeholder="Ticker or company name",
-                                      help="Narrows the table to tickers or company names containing this text.")
+                                      help="Narrows the table to tickers or company names containing this text. A "
+                                           "Yahoo Finance ticker not in the table (e.g. D05.SI) can be added.")
         sector_names = sorted(universe["sector"].dropna().unique()) if not universe.empty else []
+        if data.added_tickers():
+            sector_names.append(NON_SP)
         picked = col_sector.multiselect("Sectors", sector_names, key="pe_screen_sectors", placeholder="All sectors",
                                         help="GICS sectors to show. Leave empty to show every sector.")
 
         available = not (prices.empty or universe.empty)
-        sm, view, asof = None, pd.DataFrame(), None
+        sm, view, asof, added_notes = None, pd.DataFrame(), None, []
         if available:
             asof = prices.index[-1]
             sector_of = universe.set_index("ticker")["sector"]
-            table = valuation.pe_screen(prices, eps_all, shares, sector_of, _pe_cutoff(lookback_years))
-            view = _pe_screen_view(universe, table, query, picked)
+            cutoff = _pe_cutoff(lookback_years)
+            table = valuation.pe_screen(prices, eps_all, shares, sector_of, cutoff)
+            added_rows = _added_screen_rows(prices, eps_all, shares, cutoff, added_notes)
+            view = _pe_screen_view(universe, table, query, picked, added_rows)
             sm = summarise_pe_screen(view["pe_z"], window, asof)
         with head:
             theme.panel_header(title, subtitle, sm.text if sm else "")
+        if available:
+            _pe_screen_add_button(query, universe, view)
 
         cols = {"name": "Company", "ticker": "Ticker", "market_cap": "Market cap (USD bn)", "pe": "Fwd P/E (x)",
                 "pe_z": f"P/E σ vs {window} avg", "sector": "Sector", "sector_pe": "Sector P/E (x)"}
@@ -741,8 +957,9 @@ def render_pe_screen_panel(lookback_years: int) -> None:
             "as on the Forward P/E chart's bands (needs at least 8 days of positive NTM EPS). Stocks with negative "
             "or missing NTM EPS show — for P/E and σ.",
             "Sector P/E = GICS sector's total market cap over total NTM earnings (negative EPS excluded), as on the "
-            "comparison chart. Market cap = today's shares outstanding per share class × last completed US close.",
+            "comparison chart. Market cap = today's shares outstanding per share class × last completed close.",
             "Shading: a P/E below its own average uses the up colour; it saturates at the 95th percentile.",
+            *added_notes,
         ]
         theme.panel_footer(STOCK_SOURCE, FREQ_NAMES["D"], asof, stale=bool(sm and sm.stale),
                            caveat=" ".join([*notes, PE_CAVEAT]))
@@ -752,9 +969,11 @@ def render_pe_screen_panel(lookback_years: int) -> None:
 
 CORR_DEFAULTS = ("AAPL", "MSFT")
 CORR_TAKEAWAY = TakeawaySpec("", unit="", decimals=2, freq="D", change_days=30, change_label="1M")
-CORR_CAVEAT = ("Pearson correlation of daily total returns (split- and dividend-adjusted close), on days both stocks "
-               "have a close. Mean, ±1σ and ±2σ bands are over the loaded lookback window. The universe is today's "
-               "S&P 500 constituents.")
+CORR_CAVEAT = ("Pearson correlation of daily total returns (split- and dividend-adjusted close, each in its listing's "
+               "currency), on days both stocks have a close. Mean, ±1σ and ±2σ bands are over the loaded lookback "
+               "window. Default universe: today's S&P 500 constituents, plus any added tickers.")
+SESSION_NOTE = ("Markets close at different times, so a same-day return in an earlier market misses moves after its "
+                "close; daily correlations between different sessions (US, Europe, Asia) are understated.")
 
 
 @st.fragment
@@ -767,11 +986,7 @@ def render_correlation_panel(lookback_years: int) -> None:
     st.session_state.setdefault("corr_window", correlation.DEFAULT_WINDOW)
     with st.container(border=True):
         head = st.container()  # filled after the controls so the takeaway can use the loaded data
-        universe, universe_notice = data.load_universe()
-        prices, price_notice = data.load_prices("adj_close")
-        _warn_all([n for n in (universe_notice, price_notice) if n])
-        listed = universe[universe["ticker"].isin(prices.columns)]
-        ticker_of = dict(zip(listed["label"], listed["ticker"]))
+        _, prices, ticker_of, added = _stock_options("adj_close", [("corr_a", False), ("corr_b", False)])
 
         col_a, col_b = st.columns(2)  # pills on their own row: beside the boxes they squeeze them at half width
         with col_a:
@@ -801,6 +1016,8 @@ def render_correlation_panel(lookback_years: int) -> None:
                 if mu + 2 * sd > 1 or mu - 2 * sd < -1:
                     notes.append("The ±2σ band extends past the possible range of −1 to +1; it is a statistical band, "
                                  "not a bound.")
+                if len(_matrix_session([a, b])) > 1:
+                    notes.append(SESSION_NOTE)
         with head:
             theme.panel_header(title, subtitle, (sm.text if sm else NO_SUMMARY) if len(corr) else "")
 
@@ -819,25 +1036,30 @@ def render_correlation_panel(lookback_years: int) -> None:
                            stale=bool(sm and sm.stale), caveat=" ".join([*notes, CORR_CAVEAT]))
         if len(corr) >= 8:
             with st.expander("Raw data"):
-                raw = pd.DataFrame({f"{a} adj. close (USD)": prices[a], f"{b} adj. close (USD)": prices[b]}
+                raw = pd.DataFrame({f"{t} adj. close ({data.ticker_currency(t)})": prices[t] for t in (a, b)}
                                    ).reindex(corr.index)
                 raw[f"{window_label} correlation"] = corr
                 st.dataframe(_raw_table(raw, "", 2), width="stretch")
+    if added:  # a new ticker: rerun the page so every other stock box offers it too
+        st.rerun(scope="app")
 
 
 MATRIX_MAX = 8                         # stocks + countries combined: cells stay readable in a half-width panel
 MATRIX_STOCKS = ("AAPL", "MSFT", "NVDA", "JPM", "XOM")
 MATRIX_COUNTRIES = ("US", "Europe")
 MATRIX_CAVEAT = ("Pearson correlation of daily returns, per pair on the days both have a close. Stocks: split- and "
-                 "dividend-adjusted close (total return, USD). Country indices: price return in local currency. "
-                 "Colours: near −1 uses the up colour, near +1 the down colour (see the sidebar convention).")
-_REGION = {"America": "US", "Europe": "Europe", "Asia": "Asia"}  # time-zone prefix -> trading session
+                 "dividend-adjusted close (total return, in the listing's currency). Country indices: price return in "
+                 "local currency. Colours: near −1 uses the up colour, near +1 the down colour (see the sidebar "
+                 "convention).")
+_REGION = {"America": "US", "Europe": "Europe", "Africa": "Europe", "Atlantic": "Europe", "Asia": "Asia",
+           "Australia": "Asia", "Pacific": "Asia"}  # time-zone prefix -> trading session
 
 
 def _matrix_session(names: list[str]) -> set[str]:
-    """Trading sessions (US, Europe, Asia) covered by the chosen countries; stocks trade in the US session."""
+    """Trading sessions (US, Europe, Asia) covered by the chosen countries and stocks; each stock trades on its own
+    exchange's clock (S&P 500 stocks in the US session)."""
     tz_of = {c.name: c.tz for c in countries.COUNTRIES}
-    return {_REGION[tz_of[n].split("/")[0]] if n in tz_of else "US" for n in names}
+    return {_REGION.get((tz_of.get(n) or data.ticker_tz(n)).split("/")[0], "US") for n in names}
 
 
 def _fit_matrix_limit(key: str, other: str) -> None:
@@ -858,12 +1080,9 @@ def render_corr_matrix_panel() -> None:
     subtitle = "Correlation coefficient (−1 to +1) of daily returns · daily"
     with st.container(border=True):
         head = st.container()  # filled after the controls so the takeaway can use the loaded data
-        universe, universe_notice = data.load_universe()
-        stock_px, price_notice = data.load_prices("adj_close")
+        _, stock_px, ticker_of, added = _stock_options("adj_close", [("corr_mx_stocks", True)])
         index_px, index_notice = data.load_index_prices()
-        _warn_all([n for n in (universe_notice, price_notice, index_notice) if n])
-        listed = universe[universe["ticker"].isin(stock_px.columns)]
-        ticker_of = dict(zip(listed["label"], listed["ticker"]))
+        _warn_all([index_notice] if index_notice else [])
         label_of = {t: label for label, t in ticker_of.items()}
         country_names = [n for n in countries.NAMES if n in index_px.columns]
 
@@ -875,8 +1094,8 @@ def render_corr_matrix_panel() -> None:
         col_s, col_c = st.columns(2)  # pills on their own row below, as in the rolling correlation panel
         picked = col_s.multiselect("Stocks", list(ticker_of), key="corr_mx_stocks", max_selections=MATRIX_MAX,
                                    on_change=_fit_matrix_limit, args=("corr_mx_stocks", "corr_mx_countries"),
-                                   placeholder="Ticker or company name",
-                                   help=f"S&P 500 stocks, by ticker or company name. {limit_help}")
+                                   accept_new_options=True, placeholder="Ticker or company name",
+                                   help=f"{SEARCH_HELP} {limit_help}")
         picked_c = col_c.multiselect("Country indices", country_names, key="corr_mx_countries",
                                      on_change=_fit_matrix_limit, args=("corr_mx_countries", "corr_mx_stocks"),
                                      placeholder="Country", help=f"One benchmark index per country. {limit_help}")
@@ -887,7 +1106,7 @@ def render_corr_matrix_panel() -> None:
                                  on_change=_keep_selection, args=("corr_mx_tf", correlation.DEFAULT_MATRIX_TIMEFRAME))
         timeframe = st.session_state["corr_mx_tf"]
 
-        chosen = [ticker_of[label] for label in picked] + list(picked_c)
+        chosen = [ticker_of[label] for label in picked if label in ticker_of] + list(picked_c)
         frame = pd.concat({t: stock_px[t] for t in chosen if t in stock_px} |
                           {n: index_px[n] for n in picked_c}, axis=1, sort=True)[chosen] if chosen else pd.DataFrame()
         corr, counts, sm, notes, asof = pd.DataFrame(), pd.DataFrame(), None, [], None
@@ -900,9 +1119,7 @@ def render_corr_matrix_panel() -> None:
                 notes.append(f"Fewer than {correlation.MIN_PAIRED} shared daily returns in the timeframe, left blank: "
                              f"{', '.join(thin)}.")
             if len(_matrix_session(chosen)) > 1:
-                notes.append("Markets close at different times, so a same-day return in an earlier market misses "
-                             "moves after its close; daily correlations between different sessions (US, Europe, "
-                             "Asia) are understated.")
+                notes.append(SESSION_NOTE)
             if picked_c:
                 used = "; ".join(f"{c.name} = {c.index}" for c in countries.COUNTRIES if c.name in picked_c)
                 notes.append(f"Indices: {used}.")
@@ -924,6 +1141,8 @@ def render_corr_matrix_panel() -> None:
                 st.dataframe(corr.style.format(lambda v: theme.fmt_num(v, 2), na_rep=theme.MISSING), width="stretch")
                 st.caption("Paired daily returns per cell")
                 st.dataframe(counts, width="stretch")
+    if added:  # a new ticker: rerun the page so every other stock box offers it too
+        st.rerun(scope="app")
 
 
 # ---------- Equities: sector return panels ----------

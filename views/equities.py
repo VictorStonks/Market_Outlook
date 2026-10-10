@@ -4,12 +4,9 @@ import streamlit as st
 import panels
 
 panels.page_header("Equities")
+st.caption(panels.UNIVERSE_NOTE)  # default universe is the S&P 500; other Yahoo tickers can be typed into any stock box
 lookback_years, ma_window = panels.global_settings()
-left, right = st.columns(2)  # two-column grid, as on Rates & Credit (DESIGN.md 4)
-with left:
-    panels.render_stock_price_panel(lookback_years, ma_window)
-with right:
-    panels.render_normalised_panel(lookback_years, ma_window)
+panels.render_stock_row(lookback_years, ma_window)  # stock price and normalised price; the right follows the left
 left, right = st.columns(2)  # sector panels have their own timeframe pills, so they ignore the sidebar lookback
 with left:
     panels.render_sector_line_panel()
@@ -26,4 +23,4 @@ with left:
     panels.render_correlation_panel(lookback_years)
 with right:
     panels.render_corr_matrix_panel()
-panels.render_pe_screen_panel(lookback_years)  # every stock's forward P/E, target and upside in one sortable table
+panels.render_pe_screen_panel(lookback_years)  # every stock's forward P/E, σ vs its own average and sector P/E

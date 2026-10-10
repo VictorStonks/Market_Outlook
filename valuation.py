@@ -19,6 +19,10 @@ import pandas as pd
 NTM_DAYS = 365
 QUARTER_DAYS = 91                     # length assumed for the first quarter, whose start date is not in the data
 _GAP_DAYS = (60, 125)                 # spacing between consecutive quarter ends outside this = a missing quarter
+# Added (non-US) tickers: many Asian and European companies report annual results ~80 days after year end but Q1
+# ~45 days after quarter end, so consecutive reports can be 56 or 126 days apart (Tencent). A missing quarter
+# (~180 days) or a duplicate (~0) is still caught. Not applied to the S&P 500 (DESIGN.md 14, 2026-10-10).
+WIDE_GAP_DAYS = (45, 140)
 _EXTRAPOLATED_QUARTERS = 6            # estimates run to +6 quarters so today's 365-day window is fully covered
 _GROWTH_BOUNDS = (0.5, 2.0)           # cap on the FY2/FY1 growth used to roll estimates forward
 DEFAULT_LAG_DAYS = 35                 # typical days from fiscal quarter end to report date
@@ -32,11 +36,12 @@ def _growth(estimates: Mapping[str, float]) -> float:
     return float(np.clip(fy2 / fy1, *_GROWTH_BOUNDS))
 
 
-def build_quarters(reported: pd.Series, estimates: Mapping[str, float], lag_days: int = DEFAULT_LAG_DAYS
-                   ) -> pd.DataFrame:
+def build_quarters(reported: pd.Series, estimates: Mapping[str, float], lag_days: int = DEFAULT_LAG_DAYS,
+                   gap_days: tuple[int, int] = _GAP_DAYS) -> pd.DataFrame:
     """Quarterly EPS on fiscal period ends: columns `eps` and `estimated`. Empty when there is too little history.
 
-    `reported`: actual EPS indexed by report date. Period end = report date - `lag_days`.
+    `reported`: actual EPS indexed by report date. Period end = report date - `lag_days`. Consecutive period ends
+    spaced outside `gap_days` mark a missing quarter; only the unbroken run ending today is kept.
     `estimates`: Yahoo's current consensus keyed "0q", "+1q", "0y", "+1y". "0q" and "+1q" are the next two
     unreported quarters. Later quarters repeat the EPS of the same quarter a year earlier, times the FY2/FY1
     growth, which keeps seasonality without inventing a quarterly consensus that Yahoo does not publish.
@@ -46,7 +51,7 @@ def build_quarters(reported: pd.Series, estimates: Mapping[str, float], lag_days
         return pd.DataFrame(columns=["eps", "estimated"])
     ends = pd.DatetimeIndex(reported.index.normalize() - pd.Timedelta(days=lag_days))
     gaps = np.diff(ends.to_numpy()).astype("timedelta64[D]").astype(int)
-    bad = np.flatnonzero((gaps < _GAP_DAYS[0]) | (gaps > _GAP_DAYS[1]))
+    bad = np.flatnonzero((gaps < gap_days[0]) | (gaps > gap_days[1]))
     start = 0 if bad.size == 0 else int(bad[-1]) + 1     # keep only the unbroken run that ends today
     ends, eps = ends[start:], reported.to_numpy(dtype=float)[start:]
     if len(eps) < 5:

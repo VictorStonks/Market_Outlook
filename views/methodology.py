@@ -119,6 +119,26 @@ st.markdown(
     "class."
 )
 
+st.subheader("Stock universe and added tickers, Equities page", anchor=False)
+st.markdown(
+    "The default universe is today's S&P 500 constituents. Any other stock on Yahoo Finance can be added by typing "
+    "its ticker, with the exchange suffix (D05.SI, 7203.T, 0700.HK, ASML.AS), into a stock search box on the "
+    "Equities page, or with the Add button under the forward P/E screen's search box. It is downloaded once (10 years "
+    "of daily prices, plus EPS when a P/E panel needs it), saved, and offered in every stock box from then on.\n"
+    "- **Currency.** Added stocks are priced in their listing's own currency. With mixed currencies the stock price "
+    "chart shows the currency in each legend name. Normalised prices and correlations are local-currency returns, "
+    "with no FX conversion. London prices quoted in pence (GBp) are converted to pounds for the P/E only.\n"
+    "- **Forward P/E.** Same method as for the S&P 500. Where Yahoo lists the financial statements in a different "
+    "currency from the price (e.g. Tencent: CNY statements, HKD price), EPS is used unconverted and the footer "
+    "warns that the P/E may be off by the exchange rate. Quarters may be 45 to 140 days apart (S&P 500: 60 to 125), "
+    "because many non-US companies report annual results later than quarterly ones.\n"
+    "- **Comparisons.** Sector and index averages are built from the S&P 500, so a stock outside it is compared "
+    "with the S&P 500 average only. In the forward P/E screen, added stocks show as \"Non-S&P 500\" rows: market "
+    "cap is converted to USD at the latest Yahoo FX rate, and Sector P/E shows the S&P 500 average.\n"
+    "- **Refresh.** Prices of added tickers refresh daily (or on \"Refresh data\"); names, currencies and share "
+    "counts weekly."
+)
+
 st.subheader("Conventions", anchor=False)
 st.markdown(
     "- **Dates.** Data as-of dates are observation dates. The refresh time under each page title is in "
