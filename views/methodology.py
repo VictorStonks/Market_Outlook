@@ -123,24 +123,20 @@ st.subheader("Options open interest, Equities page", anchor=False)
 st.markdown(
     "Source: Yahoo Finance option chains via yfinance, fetched when the panel opens and cached for an hour. Open "
     "interest is a once-a-day snapshot published after each session; Yahoo keeps no history of it and the dashboard "
-    "does not save one. Yahoo lists options only for US listings.
-"
+    "does not save one. Yahoo lists options only for US listings.\n"
     "- **Open interest by strike.** Calls and puts still open at each strike, for one expiry or all listed expiries "
     "added together, drawn on the same price axis as the stock's daily close. Strikes within ±25% of the last price "
-    "are shown (wider if the price history is wider).
-"
+    "are shown (wider if the price history is wider).\n"
     "- **Max pain.** For one expiry: the strike at which the expiry's calls and puts would pay their holders the "
     "least if the stock settled there, i.e. the minimum over test prices P of the sum of call OI × max(P − K, 0) and "
     "put OI × max(K − P, 0), × 100 shares, over every strike K in the chain. Assumes every contract is held to "
-    "expiry and open interest stays as it is.
-"
+    "expiry and open interest stays as it is.\n"
     "- **Dealer gamma exposure (GEX), optional.** Uses the SqueezeMetrics convention: dealers are assumed long every "
     "call and short every put, because trade-side data (who bought, who sold) is not published. Per contract: "
     "Black-Scholes gamma × open interest × 100 × price² × 1%, in USD per 1% move; calls positive, puts negative. "
     "Gamma uses Yahoo's implied volatility per contract, the 3-month T-bill rate (FRED DGS3MO) and no dividends; "
     "contracts with an implied volatility below 1% or above 500% are left out. The gamma flip is the price at which "
-    "total GEX, recomputed at that price, changes sign (nearest crossing to the last price).
-"
+    "total GEX, recomputed at that price, changes sign (nearest crossing to the last price).\n"
     "- **Reading it.** Open interest does not show direction, and GEX is a model under an assumption, not an "
     "observation. The panel describes positioning; it does not say where the price will go."
 )
