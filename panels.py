@@ -21,7 +21,7 @@ import sectors
 import theme
 import valuation
 from takeaways import (MAX_AGE_DAYS, ReturnsSummary, Summary, TakeawaySpec, summarise, summarise_cape_fit,
-                       summarise_corr_matrix, summarise_options, summarise_target_prob,
+                       summarise_corr_matrix, summarise_options, summarise_smile, summarise_target_prob,
                        summarise_country_returns,
                        summarise_pe_comparison, summarise_pe_screen, summarise_returns, summarise_sector_returns,
                        summarise_sector_table)
@@ -505,11 +505,12 @@ def _opt_raw(oi: pd.DataFrame, chain: pd.DataFrame, single: bool, gex: options.G
 
 @st.fragment
 def render_options_row() -> None:
-    """Options open interest, then the analyst target probability below it. One fragment, so the target panel follows
-    the stock chosen in the open interest panel until the user picks its own, as the stock price pair does."""
+    """Options open interest, then the analyst target probability and the implied volatility smile below it. One
+    fragment, so the target panel follows the stock chosen in the open interest panel until the user picks its own,
+    as the stock price pair does; the smile panel draws the target panel's fit (same stock and expiry)."""
     _, prices, ticker_of, added = _stock_options("close", [("opt_sel", False), ("tp_sel", False)])
     ticker = _options_oi_panel(prices, ticker_of)
-    _target_prob_panel(prices, ticker_of, ticker)
+    _smile_panel(_target_prob_panel(prices, ticker_of, ticker))
     if added:  # a new ticker: rerun the page so every other stock box offers it too
         st.rerun(scope="app")
 
@@ -648,6 +649,13 @@ TP_HOW = (
     "- **Right: the options-implied range.** From the last price out to the chosen expiry, the fan shows the range "
     "of prices that the option market's prices imply for each date: the darker band holds the middle 50% of "
     "outcomes (25th to 75th percentile), the lighter band 90% (5th to 95th), and the dashed line is the median.\n"
+    "- **Dotted line: the forward, which is the mean.** The price at which the stock can be bought today for "
+    "delivery on each date: today's price grown at the risk-free rate, less expected dividends. Option prices pin "
+    "the *average* outcome to it. The *median* (dashed) sits below it, often below today's price for volatile "
+    "stocks, because returns compound: a −50% move needs +100% to recover, so a few very large gains lift the "
+    "average while the typical path ends lower. The gap is roughly forward × (1 − e^(−½σ²T)), about 9% for a stock "
+    "with 44% volatility over a year. A median below today's price is therefore not a sign that the market expects "
+    "a fall; read the forward for the market's average.\n"
     "- **Diamonds: analyst targets.** Yahoo's consensus target price (mean and median of the analysts covering the "
     "stock) and the lowest and highest single target, placed on the expiry date. Each label and tile gives the "
     "risk-neutral probability that the stock **ends at or above** that price on the expiry date.\n"
@@ -717,10 +725,21 @@ def _tp_raw(imp: options.Implied, unit: str) -> tuple[pd.DataFrame, pd.DataFrame
     return quotes, pcts
 
 
-def _target_prob_panel(prices: pd.DataFrame, ticker_of: dict[str, str], follow: str | None) -> None:
+@dataclass(frozen=True)
+class _SmileInput:
+    """What the smile panel draws: the target panel's fit, so both always show the same stock and expiry."""
+    ticker: str
+    imp: options.Implied
+    unit: str
+    asof: pd.Timestamp
+    targets: dict[str, float]
+
+
+def _target_prob_panel(prices: pd.DataFrame, ticker_of: dict[str, str], follow: str | None) -> _SmileInput | None:
     """Risk-neutral range of the price at one expiry (default: closest to 12 months), drawn as a fan after the price
     history, with Yahoo's analyst targets and the probability of ending at or above each (DESIGN.md 14, "Analyst
-    target probability"). The stock follows the open interest panel until the user picks another here."""
+    target probability"). The stock follows the open interest panel until the user picks another here. Returns the
+    fit for the smile panel, or None when there is none."""
     title = "Analyst targets vs options-implied range"
     label_of = {t: label for label, t in ticker_of.items()}
     if not st.session_state.get("tp_custom") and follow in label_of:
@@ -808,7 +827,9 @@ def _target_prob_panel(prices: pd.DataFrame, ticker_of: dict[str, str], follow: 
         markers = [(f"{TP_NAMES[k]} {theme.fmt_num(v, 2)} · {theme.fmt_num(probs[k] * 100, 0, '%')}"
                     + (" *" if imp.extrapolated(v) else ""), v) for k, v in targets.items()]
         fig = theme.cone_fig(history, [("5–95% range", pct(0.05), pct(0.95)), ("25–75% range", pct(0.25), pct(0.75))],
-                             cone[0.5].rename("Median"), markers=markers, unit=unit, axis_decimals=0)
+                             cone[0.5].rename("Median"), markers=markers, unit=unit, axis_decimals=0,
+                             mean=(f"Forward {theme.fmt_num(imp.forward, 2)} (mean)",
+                                   cone["forward"].rename("Forward (mean)")))
         theme.render(fig, key="tp_cone")
         with st.expander("How to use this chart"):
             st.markdown(TP_HOW)
@@ -845,6 +866,95 @@ def _target_prob_panel(prices: pd.DataFrame, ticker_of: dict[str, str], follow: 
                 c: st.column_config.NumberColumn(format="%.2f") for c in quotes.columns if c != "Type"})
             st.dataframe(pcts, hide_index=True, width="stretch", column_config={
                 c: st.column_config.NumberColumn(format="%.2f") for c in pcts.columns if c != "Percentile"})
+    return _SmileInput(ticker, imp, unit, asof, targets)
+
+
+SMILE_HOW = (
+    "- **What it shows.** Each dot is one option's implied volatility (IV): the volatility that, in the standard "
+    "Black model, reproduces the option's bid/ask mid price. It is the option's price restated in a unit that can be "
+    "compared across strikes, as a yield restates a bond's price. Blue circles are puts (strikes below the forward), "
+    "pink triangles calls (above it); only out-of-the-money options are used, because they are the ones actively "
+    "traded. The bar through each dot runs from the IV at the bid to the IV at the ask: a long bar means a wide quote "
+    "and a less certain point.\n"
+    "- **The line.** The smooth curve fitted through the dots, the same one that produces the range and "
+    "probabilities in the panel above. Solid where quotes exist; dashed beyond the lowest and highest strike quoted, "
+    "where it is extended along its edge slope. Diamonds show the fitted IV at each analyst target.\n"
+    "- **Reading the shape.** A flat line would mean the market prices all price levels with the same volatility (the "
+    "bell-curve, lognormal case). For stocks the line usually slopes down to the right (skew): low-strike puts cost "
+    "more, in volatility terms, than high-strike calls, because investors pay for crash protection. The steeper the "
+    "left side, the fatter the downside tail priced into the range above, and the higher the probability given to "
+    "moderate rises (the range's mean is fixed at the forward). A line that turns up on the right means calls on "
+    "large rises are also priced dearly, as for stocks where investors chase upside (takeovers, momentum names).\n"
+    "- **How to use it.** Compare the level with the stock's history and peers (a higher line = options are pricing "
+    "bigger moves) and the slope (a steeper skew = more demand for protection). Check the fit before trusting the "
+    "panel above: dots far from the line, or long bid/ask bars, mean the probabilities are less reliable. A target in "
+    "the dashed part rests on extrapolation.\n"
+    "- **Vertical lines.** Dotted: the last price. Dashed: the forward price (from put-call parity), where the "
+    "range above is centred."
+)
+SMILE_ASSUMPTIONS = (
+    "- **Same inputs as the panel above.** Same stock, expiry, quote filters (no bid, or spread above "
+    f"{options.MAX_REL_SPREAD:.0%} of the mid, dropped), forward and discount rate.\n"
+    "- **Black-76 on the forward.** IV is solved from the undiscounted mid with the parity forward, so dividends and "
+    "interest are already in the forward. US stock options are American-style; out-of-the-money options carry "
+    "little early-exercise value, so they are treated as European.\n"
+    "- **IV is a quoting convention, not a forecast of volatility.** It includes the premium option sellers charge "
+    "for risk, so it usually runs above the volatility that the stock then shows.\n"
+    "- **The fit.** A quadratic in log(strike / forward), weighted towards strikes near the forward (where options "
+    "trade most), continued in a straight line beyond the strikes quoted. A quadratic is a smooth summary: it can "
+    "miss sharp curvature in the far wings, which the root-mean-square error in the takeaway measures.\n"
+    "- **90% / 110% of the forward.** A simple, model-free way to state the skew: IV on the fitted line at 10% below "
+    "and 10% above the forward, and the gap between them in percentage points (pp)."
+)
+
+
+def _smile_panel(src: _SmileInput | None) -> None:
+    """Implied volatility smile behind the analyst target panel: quotes' IV with bid/ask bars, the fitted smile and
+    the targets on it (DESIGN.md 14, "Implied volatility smile")."""
+    title = "Implied volatility smile"
+    with st.container(border=True):
+        if src is None:
+            theme.panel_header(title, "% implied volatility by strike · daily snapshot")
+            st.info("No smile to show: the panel above has no usable option quotes for this stock and expiry.")
+            theme.panel_footer(STOCK_SOURCE, "Daily snapshot", None)
+            return
+        imp, unit, cur = src.imp, src.unit, src.unit.strip()
+        q = imp.quotes
+        atm, put90, call110 = imp.fitted_iv([imp.forward, 0.9 * imp.forward, 1.1 * imp.forward]) * 100
+        sm = summarise_smile(src.ticker, imp.expiry, imp.forward, unit, atm, put90, call110, imp.fit_error() * 100,
+                             len(q), src.asof)
+        theme.panel_header(title, f"% implied volatility by strike ({cur}) · expiring {imp.expiry:%d %b %Y} · daily "
+                                  "snapshot", sm.text)
+        lo, hi = imp.strike_range
+        x_lo = min(lo, *src.targets.values(), imp.spot) if src.targets else min(lo, imp.spot)
+        x_hi = max(hi, *src.targets.values(), imp.spot) if src.targets else max(hi, imp.spot)
+        grid = np.linspace(x_lo, x_hi, 300)
+        fit = pd.Series(imp.fitted_iv(grid) * 100, index=grid)
+        groups = [(name, pd.DataFrame({"strike": g["strike"], "iv": g["iv"] * 100,
+                                       "lo": g["iv_bid"].fillna(g["iv"]) * 100, "hi": g["iv_ask"].fillna(g["iv"]) * 100}))
+                  for name, g in (("Puts", q[q["type"] == "put"]), ("Calls", q[q["type"] == "call"])) if not g.empty]
+        markers = [(TP_NAMES[k], v, float(imp.fitted_iv([v])[0] * 100)) for k, v in src.targets.items()]
+        fig = theme.smile_fig(groups, fit, quoted=(lo, hi), markers=markers, unit=unit, levels=[
+            (f"Last {theme.fmt_num(imp.spot, 2)}", imp.spot, "dot"),
+            (f"Forward {theme.fmt_num(imp.forward, 2)}", imp.forward, "dash")])
+        theme.render(fig, key="tp_smile")
+        with st.expander("How to use this chart"):
+            st.markdown(SMILE_HOW)
+        with st.expander("Assumptions"):
+            st.markdown(SMILE_ASSUMPTIONS)
+        notes = []
+        if q["iv_bid"].isna().any():
+            notes.append(f"{int(q['iv_bid'].isna().sum()):,} bids are too low to solve for a volatility; their bars "
+                         "start at the mid.")
+        theme.panel_footer(STOCK_SOURCE, "Daily snapshot (option quotes as listed by Yahoo)", src.asof,
+                           stale=sm.stale, caveat=" ".join([*notes, "Implied volatility is a quoting convention that "
+                                                            "includes a risk premium; it is not a volatility forecast."]))
+        with st.expander("Raw data"):
+            raw = pd.DataFrame({f"Strike ({cur})": q["strike"], "Type": q["type"].str.capitalize(),
+                                "IV at bid (%)": q["iv_bid"] * 100, "IV at mid (%)": q["iv"] * 100,
+                                "IV at ask (%)": q["iv_ask"] * 100, "Fitted IV (%)": q["fit_iv"] * 100})
+            st.dataframe(raw, hide_index=True, width="stretch", column_config={
+                c: st.column_config.NumberColumn(format="%.2f") for c in raw.columns if c != "Type"})
 
 
 def _currency_names(series: dict[str, pd.Series]) -> tuple[dict[str, str], str | None]:

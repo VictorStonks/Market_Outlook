@@ -497,14 +497,15 @@ def oi_profile_fig(
 
 def cone_fig(
     price: pd.Series, bands: Sequence[tuple[str, pd.Series, pd.Series]], median: pd.Series, *,
-    markers: Sequence[tuple[str, float]] = (), unit: str = "", decimals: int = 2, axis_decimals: int | None = None,
-    height: int = 400,
+    markers: Sequence[tuple[str, float]] = (), mean: tuple[str, pd.Series] | None = None, unit: str = "",
+    decimals: int = 2, axis_decimals: int | None = None, height: int = 400,
 ) -> go.Figure:
     """Price history running into a fan of ranges out to a future date (DESIGN.md 14, "Analyst target probability").
     `bands` are (legend name, lower, upper) on the fan's date index, widest first; each is the same `muted` 20% tint
     as band_fig, so inner bands read darker. Each bound's own `.name` labels it in the hover. `median` is dashed
-    `text2`. `markers` are (label, y) points at the fan's last date, with the label printed to the right (nudged apart
-    so labels never overlap), so colour is not the only signal."""
+    `text2`. `mean` is (end label, series named for the legend), drawn dotted `text` so it differs from the median
+    by line style. `markers` are (label, y) points at the fan's last date. All end labels are printed to the right
+    (nudged apart so they never overlap), so colour is not the only signal."""
     t = tokens()
     s = price.dropna()
     end = median.index[-1]
@@ -518,10 +519,16 @@ def cone_fig(
                                  fillcolor=_rgba(t["muted"], 0.2), name=name, hovertemplate=hover(lower.name)))
     fig.add_trace(go.Scatter(x=median.index, y=median.values, mode="lines", name=median.name,
                              line=dict(color=t["text2"], width=1.5, dash="dash"), hovertemplate=hover(median.name)))
+    labels = list(markers)
+    if mean is not None:
+        mean_label, path = mean
+        fig.add_trace(go.Scatter(x=path.index, y=path.values, mode="lines", name=path.name,
+                                 line=dict(color=t["text"], width=1.5, dash="dot"), hovertemplate=hover(path.name)))
+        labels.append((mean_label, float(path.iloc[-1])))
     fig.add_trace(go.Scatter(x=s.index, y=s.values, mode="lines", name="Close", line=dict(color=t["text"], width=2),
                              hovertemplate=hover("Close")))
     values = [s.to_numpy(), median.to_numpy(), *[b.to_numpy() for _, lo, hi in bands for b in (lo, hi)],
-              np.array([y for _, y in markers])]
+              np.array([y for _, y in labels])]
     y_lo, y_hi = min(float(np.nanmin(v)) for v in values if len(v)), max(float(np.nanmax(v)) for v in values if len(v))
     pad = (y_hi - y_lo) * 0.04
     y_lo, y_hi = y_lo - pad, y_hi + pad
@@ -530,9 +537,10 @@ def cone_fig(
                                  name="Analyst targets", marker=dict(symbol="diamond", size=9, color=t["accent"]),
                                  customdata=[label for label, _ in markers],
                                  hovertemplate="%{customdata}<extra></extra>"))
+    if labels:
         gap = (y_hi - y_lo) * 15 / max(height - 90, 100)   # about 15px between label baselines
         placed: list[float] = []
-        for label, y in sorted(markers, key=lambda m: m[1]):
+        for label, y in sorted(labels, key=lambda m: m[1]):
             ly = max(y, placed[-1] + gap) if placed else y
             placed.append(ly)
             fig.add_annotation(x=end, y=ly, xanchor="left", xshift=8, text=label, showarrow=False,
@@ -542,6 +550,58 @@ def cone_fig(
     room = max((end - start) * 0.2, pd.Timedelta(days=30))   # space right of the fan for the printed labels
     fig.update_xaxes(range=[start, end + room], tickformat="%b %y", hoverformat="%d %b %Y")
     fig.update_yaxes(range=[y_lo, y_hi])
+    return fig
+
+
+def smile_fig(
+    quotes: Sequence[tuple[str, pd.DataFrame]], fit: pd.Series, *, quoted: tuple[float, float],
+    levels: Sequence[tuple[str, float, str]] = (), markers: Sequence[tuple[str, float, float]] = (),
+    unit: str = "", decimals: int = 2, height: int = 300,
+) -> go.Figure:
+    """Implied volatility smile (DESIGN.md 14, "Implied volatility smile"): y = IV in %, x = strike in `unit`.
+    `quotes` are (legend name, frame with strike, iv, lo, hi) per group, drawn as markers (categorical series 2, 3;
+    different symbols, so colour is not the only signal) with error bars from lo to hi (IV at bid and at ask). `fit`
+    (indexed by strike) is the accent line: solid inside `quoted`, dashed beyond it (extrapolated). `levels` are
+    labelled vertical lines (label, x, style "dash" | "dot"); labels alternate top and bottom so close lines stay
+    readable. `markers` are (label, strike, iv) diamonds on the fit with the label printed above."""
+    t = tokens()
+    colors = categorical_colors(3)[1:]
+    fig = _base_fig(height, "%", 1)
+    fig.update_layout(hovermode="closest")
+    for (name, q), color, symbol in zip(quotes, colors, ("circle", "triangle-up")):
+        fig.add_trace(go.Scatter(
+            x=q["strike"], y=q["iv"], mode="markers", name=name, marker=dict(color=color, size=7, symbol=symbol),
+            error_y=dict(type="data", symmetric=False, array=(q["hi"] - q["iv"]).clip(lower=0),
+                         arrayminus=(q["iv"] - q["lo"]).clip(lower=0), color=_rgba(color, 0.6), thickness=1, width=0),
+            customdata=np.c_[q["lo"], q["hi"]],
+            hovertemplate=(f"Strike %{{x:,.{decimals}f}}{unit}<br>{name}: %{{y:.1f}}%<br>Bid–ask: "
+                           "%{customdata[0]:.1f}–%{customdata[1]:.1f}%<extra></extra>")))
+    inside = (fit.index >= quoted[0]) & (fit.index <= quoted[1])
+    hover = f"Strike %{{x:,.{decimals}f}}{unit}<br>Fitted: %{{y:.1f}}%<extra></extra>"
+    fig.add_trace(go.Scatter(x=fit.index[inside], y=fit.values[inside], mode="lines", name="Fitted smile",
+                             line=dict(color=t["accent"], width=2), hovertemplate=hover))
+    for i, part in enumerate((fit.index < quoted[0], fit.index > quoted[1])):
+        if part.any():  # join to the solid line so the dashed part continues it
+            edge = fit.index[inside][-1 if i else 0] if inside.any() else fit.index[part][0]
+            seg = fit[part | (fit.index == edge)]
+            fig.add_trace(go.Scatter(x=seg.index, y=seg.values, mode="lines", name="Extrapolated",
+                                     line=dict(color=t["accent"], width=1.5, dash="dash"), hovertemplate=hover,
+                                     showlegend=not any(tr.name == "Extrapolated" for tr in fig.data)))
+    if markers:
+        fig.add_trace(go.Scatter(
+            x=[m[1] for m in markers], y=[m[2] for m in markers], mode="markers+text", name="Analyst targets",
+            text=[m[0] for m in markers], textposition="top center", textfont=dict(color=t["text"], size=11),
+            marker=dict(symbol="diamond", size=9, color=t["accent"], line=dict(color=t["bg"], width=1)),
+            hovertemplate=f"%{{text}} %{{x:,.{decimals}f}}{unit}<br>Fitted: %{{y:.1f}}%<extra></extra>"))
+    line_color = {"dash": t["text"], "dot": t["muted"]}
+    for i, (label, x, style) in enumerate(levels):
+        fig.add_vline(x=x, line=dict(color=line_color[style], width=1.5 if style == "dash" else 1, dash=style))
+        top = i % 2 == 0
+        fig.add_annotation(x=x, xanchor="left", xshift=4, yref="paper", y=1 if top else 0,
+                           yanchor="top" if top else "bottom", text=label, showarrow=False,
+                           font=dict(color=t["text"], size=11), bgcolor=_rgba(t["bg"], 0.7))
+    fig.update_xaxes(ticksuffix=unit, tickformat=",.0f", hoverformat=f",.{decimals}f", showspikes=False)
+    fig.update_yaxes(ticksuffix="%", tickformat=",.0f")
     return fig
 
 

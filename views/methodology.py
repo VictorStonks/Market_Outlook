@@ -157,10 +157,22 @@ st.markdown(
     "(Breeden-Litzenberger), so it includes the skew. Checked against a finite-difference derivative of call prices, "
     "and the distribution's mean against the parity forward.\n"
     "- **Fan.** Percentiles (5, 25, 50, 75, 95) at expiry from the distribution; earlier dates scale the expiry's "
-    "log-return percentiles by the square root of time. Only the expiry end comes from option prices.\n"
+    "log-return percentiles by the square root of time. Only the expiry end comes from option prices. The dotted line "
+    "is the forward, the distribution's mean; the median sits below it by roughly e^(−½σ²T) (volatility drag), so "
+    "for volatile stocks it can be below today's price without the market expecting a fall.\n"
     "- **Reading it.** Risk-neutral probabilities include risk premia, so they usually understate the real-world "
     "chance of rises and overstate falls. The probability is for the price on the expiry date, not for touching "
     "the target earlier. It describes option pricing; it is not a forecast."
+)
+
+st.subheader("Implied volatility smile, Equities page", anchor=False)
+st.markdown(
+    "Draws the fit behind the analyst target panel (same stock, expiry and quotes). Each out-of-the-money option's "
+    "implied volatility is solved with Black-76 on the parity forward from its bid/ask mid, with a bar from the IV "
+    "at the bid to the IV at the ask. The line is the fitted quadratic smile in log(strike / forward), dashed where "
+    "it is extrapolated beyond the strikes quoted. The takeaway states the fitted IV at the forward and at 90% and "
+    "110% of it (a simple skew measure, in pp) and the fit's root-mean-square miss. Implied volatility includes a "
+    "risk premium and is not a volatility forecast."
 )
 
 st.subheader("Stock universe and added tickers, Equities page", anchor=False)

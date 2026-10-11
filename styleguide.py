@@ -112,6 +112,20 @@ with st.container(border=True):
         unit=" USD", axis_decimals=0), key="sg_cone")
     theme.panel_footer("Synthetic", "Daily snapshot", days[-1])
 
+with st.container(border=True):
+    theme.panel_header("Smile", "Quote markers with bid/ask bars, fitted line solid inside the quoted strikes, dashed "
+                                "beyond; close vertical lines to test label placement")
+    ks = np.arange(70, 135, 5.0)
+    iv = 30 - 0.25 * (ks - 100) + 0.004 * (ks - 100) ** 2
+    smile_q = pd.DataFrame({"strike": ks, "iv": iv + rng.normal(0, 0.4, len(ks)), "lo": iv - 0.8, "hi": iv + 0.8})
+    smile_grid = np.linspace(60, 145, 200)
+    theme.render(theme.smile_fig(
+        [("Puts", smile_q[smile_q["strike"] < 100]), ("Calls", smile_q[smile_q["strike"] >= 100])],
+        pd.Series(30 - 0.25 * (smile_grid - 100) + 0.004 * (smile_grid - 100) ** 2, index=smile_grid), quoted=(70, 130),
+        levels=[("Last 98.00", 98.0, "dot"), ("Forward 101.00", 101.0, "dash")],
+        markers=[("Mean", 112.0, 27.6), ("High", 140.0, 26.4)], unit=" USD"), key="sg_smile")
+    theme.panel_footer("Synthetic", "Daily snapshot", days[-1])
+
 # ---------- What changed ----------
 st.subheader("What changed", anchor=False)
 lines = whats_changed({"10Y–2Y spread": sm, "BB OAS": summarise(credit["US BB"], TakeawaySpec("BB OAS", unit="%"))} if sm else {})

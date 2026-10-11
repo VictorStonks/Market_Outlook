@@ -219,7 +219,7 @@ class Implied:
     spot: float
     forward: float
     parity: bool                   # forward from put-call parity (else the spot grown at the rate, no dividends)
-    quotes: pd.DataFrame           # quotes priced: strike, type, bid, ask, mid, spread, iv, fit_iv
+    quotes: pd.DataFrame           # quotes priced: strike, type, bid, ask, mid, spread, iv, iv_bid, iv_ask, fit_iv
     smile: np.ndarray              # quadratic coefficients of IV in ln(K / forward), highest power first
     strike_range: tuple[float, float]   # lowest and highest strike priced; the smile is extrapolated beyond them
     grid: np.ndarray               # prices at expiry, ascending
@@ -235,16 +235,28 @@ class Implied:
     def extrapolated(self, price: float) -> bool:
         return not self.strike_range[0] <= price <= self.strike_range[1]
 
+    def fitted_iv(self, strikes) -> np.ndarray:
+        """The fitted smile's implied volatility (decimal) at each strike, extrapolated beyond the strikes priced."""
+        x_range = tuple(np.log(np.array(self.strike_range) / self.forward))
+        return smile_vol(self.smile, x_range, np.log(np.asarray(strikes, dtype=float) / self.forward))
+
+    def fit_error(self) -> float:
+        """Root-mean-square miss of the fitted smile against the quotes' implied volatilities (decimal)."""
+        return float(np.sqrt(np.mean((self.quotes["iv"] - self.quotes["fit_iv"]) ** 2)))
+
     def cone(self, start: pd.Timestamp, qs: tuple[float, ...] = CONE_QUANTILES) -> pd.DataFrame:
-        """Quantiles of the price on each business day from `start` (today, at the spot) to the expiry. Only the
-        expiry end comes from option prices; in between, the expiry's log-return quantiles are scaled by the square
-        root of the fraction of time elapsed and centred on the forward grown smoothly from the spot."""
+        """Quantiles of the price on each business day from `start` (today, at the spot) to the expiry, plus a
+        "forward" column: the forward grown smoothly from the spot, which is the distribution's mean (option prices
+        pin the mean, not the median, to the forward). Only the expiry end comes from option prices; in between, the
+        expiry's log-return quantiles are scaled by the square root of the fraction of time elapsed."""
         dates = pd.DatetimeIndex([start]).append(pd.bdate_range(start + pd.Timedelta(days=1), self.expiry))
         left = np.array([self.years] + [years_to_expiry(self.expiry, _close(d)) for d in dates[1:]])
         tau = np.clip(1 - left / self.years, 0, 1)
         tau[-1] = 1.0
         centre = self.spot * (self.forward / self.spot) ** tau
-        return pd.DataFrame({q: centre * (self.quantile(q) / self.forward) ** np.sqrt(tau) for q in qs}, index=dates)
+        out = pd.DataFrame({q: centre * (self.quantile(q) / self.forward) ** np.sqrt(tau) for q in qs}, index=dates)
+        out["forward"] = centre
+        return out
 
 
 def implied_distribution(chain: pd.DataFrame, spot: float, now: pd.Timestamp,
@@ -270,6 +282,9 @@ def implied_distribution(chain: pd.DataFrame, spot: float, now: pd.Timestamp,
                       f"(spread under {MAX_REL_SPREAD:.0%} of the mid); {MIN_QUOTES_SIDE} are needed on each side")
 
     k = q["strike"].to_numpy(dtype=float)
+    calls = (q["type"] == "call").to_numpy()
+    q = q.assign(iv_bid=black_iv(q["bid"].to_numpy(dtype=float) / discount, fwd, k, years, calls),
+                 iv_ask=black_iv(q["ask"].to_numpy(dtype=float) / discount, fwd, k, years, calls))
     x = np.log(k / fwd)
     vt = q["iv"].to_numpy() * math.sqrt(years)
     vega = _npdf((-x + 0.5 * vt ** 2) / vt)          # Black vega up to a constant: weights the fit to liquid strikes

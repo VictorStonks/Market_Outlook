@@ -336,3 +336,20 @@ def summarise_target_prob(ticker: str, expiry: pd.Timestamp, days: int, spot: fl
         text = (f"{when} put the middle half of {ticker}'s risk-neutral range at expiry at {span}, against a last "
                 f"price of {fmt_num(spot, 2, unit)}.")
     return ReturnsSummary({"probability": prob}, asof, (today - asof).days > MAX_AGE_DAYS["D"], text)
+
+
+def summarise_smile(ticker: str, expiry: pd.Timestamp, forward: float, unit: str, atm: float, put90: float,
+                    call110: float, fit_error: float, quotes: int, asof: pd.Timestamp, *,
+                    today: pd.Timestamp | None = None) -> ReturnsSummary:
+    """The smile in one sentence: implied volatility (all in %) at the forward and at 90% / 110% of it, the gap
+    between them (skew, in pp) and how closely the fit matches the quotes. Describes only (DESIGN.md 8).
+    `returns` holds {"atm": atm, "skew": put90 - call110}."""
+    today = today or pd.Timestamp.today().normalize()
+    skew = put90 - call110
+    side = "puts priced at a higher volatility than calls" if skew > 0 else \
+        "calls priced at a higher volatility than puts" if skew < 0 else "puts and calls priced alike"
+    text = (f"{ticker} options expiring {expiry:%d %b %Y}: implied volatility is {fmt_num(atm, 1, '%')} at the "
+            f"forward ({fmt_num(forward, 2, unit)}), {fmt_num(put90, 1, '%')} at 90% of it and "
+            f"{fmt_num(call110, 1, '%')} at 110%, a {fmt_num(abs(skew), 1, ' pp')} gap with {side}. The fitted smile "
+            f"misses the {quotes:,} quotes by {fmt_num(fit_error, 1, ' pp')} on average (root mean square).")
+    return ReturnsSummary({"atm": atm, "skew": skew}, asof, (today - asof).days > MAX_AGE_DAYS["D"], text)
