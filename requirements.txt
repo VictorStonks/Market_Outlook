@@ -6,3 +6,4 @@ fredapi
 plotly
 tzdata
 lxml
+requests

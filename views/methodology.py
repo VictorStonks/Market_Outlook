@@ -116,14 +116,19 @@ st.markdown(
     "- **Sector P/E.** The GICS sector average from the comparison panel (total market cap over total NTM "
     "earnings, negative EPS excluded).\n"
     "- **Market cap.** Today's shares outstanding per share class × the last completed US close, so dual-class companies appear once per "
-    "class."
+    "class.\n"
+    "- **Target and upside.** Yahoo's mean analyst target (a consensus, with no date per analyst), saved for every "
+    "constituent by the weekly share-count download, which reads it from the same Yahoo response at no extra cost. "
+    "Upside = target / last close − 1. It is the analysts' view, not a forecast by this dashboard. Shown as — when "
+    "Yahoo lists no target or its currency differs from the listing's."
 )
 
 st.subheader("Options open interest, Equities page", anchor=False)
 st.markdown(
-    "Source: Yahoo Finance option chains via yfinance, fetched when the panel opens and cached for an hour. Open "
-    "interest is a once-a-day snapshot published after each session; Yahoo keeps no history of it and the dashboard "
-    "does not save one. Yahoo lists options only for US listings.\n"
+    "Source: Cboe's public delayed option quotes (15-minute delay; one request returns every expiry), with Yahoo "
+    "Finance via yfinance as a fallback, fetched when the panel opens and cached for an hour. Open interest is a "
+    "once-a-day snapshot published after each session; no free source keeps its history and the dashboard does not "
+    "save one. Options are listed only for US stocks and ETFs.\n"
     "- **Open interest by strike.** Calls and puts still open at each strike, for one expiry or all listed expiries "
     "added together, drawn on the same price axis as the stock's daily close. Strikes within ±25% of the last price "
     "are shown (wider if the price history is wider).\n"
@@ -143,8 +148,10 @@ st.markdown(
 
 st.subheader("Analyst targets vs options-implied range, Equities page", anchor=False)
 st.markdown(
-    "Source: Yahoo Finance analyst targets (consensus mean, median, low and high, with no date per analyst) and option "
-    "quotes via yfinance, fetched when the panel opens and cached (targets 6 hours, quotes 1 hour). The default "
+    "Source: Yahoo Finance analyst targets via yfinance (consensus mean, median, low and high, with no date per "
+    "analyst; cached 6 hours) and option quotes as above (cached 1 hour). Yahoo blocks the targets call from shared "
+    "cloud servers, so each successful fetch is also saved in cache/analyst_targets.json and that snapshot is used "
+    "when the live call fails; the footer then gives its date and marks it STALE after 30 days. The default "
     "expiry is the listed one closest to 12 months, the horizon of a price target.\n"
     "- **Forward.** Put-call parity on the five strikes nearest the price (median of strike + (call mid − put mid) / "
     "discount factor), which includes expected dividends. Discounting uses the FRED Treasury yield closest to the "

@@ -430,7 +430,7 @@ OPT_HOW_OI = (
     "number of call (amber) and put (blue) contracts still open, side by side. Both parts share one price axis, so a "
     "bar sits at its strike's price next to the price line. Strikes within ±25% of the last price are shown (wider "
     "if the price history is wider).\n"
-    "- **Open interest is not direction.** Every open contract has a buyer and a seller, and Yahoo does not say "
+    "- **Open interest is not direction.** Every open contract has a buyer and a seller, and the data does not say "
     "which side is customers or dealers. A tall call bar means many contracts are open at that strike, not that "
     "people are bullish.\n"
     "- **Expiry.** One expiry, or all listed expiries added together. The default is the nearest standard monthly "
@@ -444,8 +444,9 @@ OPT_HOW_OI = (
     "total. Some traders watch for prices settling near it in the last days before expiry; the evidence for that is "
     "mixed, and this panel does not claim it. It moves as open interest changes, and it means little for an expiry "
     "with little open interest.\n"
-    "- **Dotted line:** the last price Yahoo reported with the option chain."
+    "- **Dotted line:** the last price reported with the option chain."
 )
+OPT_SOURCES = "Cboe delayed quotes (Yahoo Finance as fallback)"   # footer when no chain loaded, so no source is known
 OPT_HOW_GEX = (
     "- **What it shows.** With the toggle on, bars show dealer gamma exposure (GEX) per strike in USD per 1% move "
     "of the stock: how many dollars of stock dealers would need to buy or sell to stay hedged when the stock moves "
@@ -456,8 +457,9 @@ OPT_HOW_GEX = (
     "as positive (amber, right of zero) and put gamma as negative (blue, left of zero). The diamond is the net per "
     "strike. When the real positioning differs (e.g. investors buying calls in a rally), the sign and size are wrong.\n"
     "- **Calculation.** Per contract: Black-Scholes gamma × open interest × 100 shares × price² × 1%. Gamma uses "
-    f"Yahoo's implied volatility for each contract, the 3-month T-bill rate (FRED {OPT_RATE}) and no dividends. "
-    "Contracts whose implied volatility Yahoo shows as near zero or above 500% (stale quotes) are left out and "
+    f"the data source's implied volatility for each contract (Cboe's, or Yahoo's on fallback), the 3-month T-bill "
+    f"rate (FRED {OPT_RATE}) and no dividends. Contracts whose implied volatility is near zero or above 500% (no "
+    "usable quote) are left out and "
     "counted in the footer.\n"
     f"- **{OPT_FLIP}** (pill): the price at which total dealer GEX, recomputed at that price, changes sign. Above it "
     "net dealer gamma is positive, below it negative (nearest crossing to the last price within the range shown).\n"
@@ -467,8 +469,8 @@ OPT_HOW_GEX = (
     "positioning under an assumption, not an observation, and not a signal on its own."
 )
 OPT_CAVEAT = ("Open interest is a daily snapshot that the exchanges publish after each session, so it describes "
-              "positions at the previous close; Yahoo keeps no history of it. Yahoo lists options only for US "
-              "listings. One contract = 100 shares.")
+              "positions at the previous close; no free source keeps its history. Quotes are delayed 15 minutes. "
+              "Options are listed only for US stocks and ETFs. One contract = 100 shares.")
 
 
 def _opt_expiry_label(e: pd.Timestamp, today: dt.date) -> str:
@@ -558,22 +560,22 @@ def _options_oi_panel(prices: pd.DataFrame, ticker_of: dict[str, str]) -> str | 
             with head:
                 theme.panel_header(title, "Contracts by strike · daily snapshot")
             (st.warning if failed else st.info)(message)
-            theme.panel_footer(STOCK_SOURCE, "Daily snapshot", None, caveat=" ".join([*notes, OPT_CAVEAT]))
+            theme.panel_footer(OPT_SOURCES, "Daily snapshot", None, caveat=" ".join([*notes, OPT_CAVEAT]))
             return ticker
 
         if not ticker:
             return empty("No stock prices available." if not ticker_of else "Select a stock.")
         if not expiries:
             return empty(exp_notice, failed=True) if exp_notice else \
-                empty(f"Yahoo Finance lists no options for {ticker}. Option chains are available for US-listed "
-                      "stocks and ETFs only.")
+                empty(f"No listed options found for {ticker}. Option chains are available for US-listed stocks and "
+                      "ETFs only.")
         if exp_notice:
             st.warning(exp_notice)
         chain, info, notice = data.load_options(ticker, expiries if not single else [picked])
         if notice:
             st.warning(notice)
         if chain.empty or float(chain["oi"].sum()) <= 0:
-            return empty(f"Yahoo returned no open interest for {ticker} for this expiry." if not chain.empty
+            return empty(f"No open interest reported for {ticker} for this expiry." if not chain.empty
                          else f"No option data for {ticker}.")
 
         spot, unit = float(info["spot"]), f" {info['currency']}"
@@ -632,7 +634,7 @@ def _options_oi_panel(prices: pd.DataFrame, ticker_of: dict[str, str]) -> str | 
         if gex_on:
             notes.append("GEX assumes dealers are long all calls and short all puts (SqueezeMetrics convention); "
                          "actual dealer positions are not published.")
-        theme.panel_footer(STOCK_SOURCE, "Daily snapshot (open interest as of the previous session)", asof,
+        theme.panel_footer(info["source"], "Daily snapshot (open interest as of the previous session)", asof,
                            stale=sm.stale, caveat=" ".join([*notes, OPT_CAVEAT]))
         with st.expander("Raw data"):
             raw = _opt_raw(shown, chain, single, gex, unit)
@@ -702,7 +704,8 @@ TP_ASSUMPTIONS = (
     "no distribution is shown. The footer flags wide quotes."
 )
 TP_CAVEAT = ("Risk-neutral probabilities, not forecasts: they usually understate the real-world chance of rises and "
-             "overstate the chance of falls. Option quotes are a snapshot; Yahoo lists options only for US listings.")
+             "overstate the chance of falls. Option quotes are a snapshot, delayed 15 minutes; options are listed only "
+             "for US stocks and ETFs.")
 
 
 def _mark_tp_custom() -> None:
@@ -736,6 +739,7 @@ class _SmileInput:
     unit: str
     asof: pd.Timestamp
     targets: dict[str, float]
+    source: str                    # option quote source, for the footer
 
 
 def _target_prob_panel(prices: pd.DataFrame, ticker_of: dict[str, str], follow: str | None) -> _SmileInput | None:
@@ -768,14 +772,15 @@ def _target_prob_panel(prices: pd.DataFrame, ticker_of: dict[str, str], follow: 
             with head:
                 theme.panel_header(title, "Price · options-implied range at expiry · daily snapshot")
             (st.warning if failed else st.info)(message)
-            theme.panel_footer(STOCK_SOURCE, "Daily snapshot", None, caveat=" ".join([*notes, TP_CAVEAT]))
+            theme.panel_footer(f"{OPT_SOURCES}; analyst targets: {STOCK_SOURCE}", "Daily snapshot", None,
+                               caveat=" ".join([*notes, TP_CAVEAT]))
 
         if not ticker:
             return empty("No stock prices available." if not ticker_of else "Select a stock.")
         if not expiries or picked is None:
             return empty(exp_notice, failed=True) if exp_notice else \
-                empty(f"Yahoo Finance lists no options for {ticker}. Option chains are available for US-listed "
-                      "stocks and ETFs only.")
+                empty(f"No listed options found for {ticker}. Option chains are available for US-listed stocks and "
+                      "ETFs only.")
         if exp_notice:
             st.warning(exp_notice)
         chain, info, notice = data.load_options(ticker, [picked])
@@ -821,7 +826,7 @@ def _target_prob_panel(prices: pd.DataFrame, ticker_of: dict[str, str], follow: 
                 help=f"Risk-neutral probability, priced by options expiring {picked:%d %b %Y}, that {ticker} ends at "
                      f"or above {theme.fmt_num(v, 2, unit)}. Not a real-world forecast; see 'Assumptions' below.")
                 for k, v in targets.items()])
-        else:
+        elif not t_notice:   # a failed fetch already says why there are no targets
             st.info(f"Yahoo Finance lists no analyst price targets for {ticker} (usual for ETFs and indices). The "
                     "options-implied range is shown without them.")
 
@@ -862,17 +867,24 @@ def _target_prob_panel(prices: pd.DataFrame, ticker_of: dict[str, str], follow: 
                          f"{theme.fmt_num(imp.smoothed * 100, 1)} pp).")
         if history.empty:
             notes.append(f"No saved price history for {ticker}.")
+        targets_old = False
+        if tg.get("saved"):
+            saved = dt.date.fromisoformat(tg["saved"])
+            targets_old = (today - saved).days > data.TARGETS_STALE_DAYS
+            notes.append(f"Yahoo did not answer live, so analyst targets are from the snapshot saved "
+                         f"{saved:%d %b %Y}" + (f" (over {data.TARGETS_STALE_DAYS} days old)." if targets_old else "."))
         notes.append(f"{len(imp.quotes):,} quotes priced; forward {theme.fmt_num(imp.forward, 2, unit)}; rate FRED "
                      f"{series} {theme.fmt_num(rate * 100, 2, '%')}.")
-        theme.panel_footer(STOCK_SOURCE, "Daily snapshot (option quotes and analyst targets as listed by Yahoo)", asof,
-                           stale=sm.stale, caveat=" ".join([*notes, TP_CAVEAT]))
+        theme.panel_footer(f"{info['source']}; analyst targets: {STOCK_SOURCE}",
+                           "Daily snapshot (option quotes; analyst targets as listed)", asof,
+                           stale=sm.stale or targets_old, caveat=" ".join([*notes, TP_CAVEAT]))
         with st.expander("Raw data"):
             quotes, pcts = _tp_raw(imp, unit)
             st.dataframe(quotes, hide_index=True, width="stretch", column_config={
                 c: st.column_config.NumberColumn(format="%.2f") for c in quotes.columns if c != "Type"})
             st.dataframe(pcts, hide_index=True, width="stretch", column_config={
                 c: st.column_config.NumberColumn(format="%.2f") for c in pcts.columns if c != "Percentile"})
-    return _SmileInput(ticker, imp, unit, asof, targets)
+    return _SmileInput(ticker, imp, unit, asof, targets, info["source"])
 
 
 SMILE_HOW = (
@@ -922,7 +934,7 @@ def _smile_panel(src: _SmileInput | None) -> None:
         if src is None:
             theme.panel_header(title, "% implied volatility by strike · daily snapshot")
             st.info("No smile to show: the panel above has no usable option quotes for this stock and expiry.")
-            theme.panel_footer(STOCK_SOURCE, "Daily snapshot", None)
+            theme.panel_footer(OPT_SOURCES, "Daily snapshot", None)
             return
         imp, unit, cur = src.imp, src.unit, src.unit.strip()
         q = imp.quotes
@@ -952,7 +964,7 @@ def _smile_panel(src: _SmileInput | None) -> None:
         if q["iv_bid"].isna().any():
             notes.append(f"{int(q['iv_bid'].isna().sum()):,} bids are too low to solve for a volatility; their bars "
                          "start at the mid.")
-        theme.panel_footer(STOCK_SOURCE, "Daily snapshot (option quotes as listed by Yahoo)", src.asof,
+        theme.panel_footer(src.source, "Daily snapshot (option quotes)", src.asof,
                            stale=sm.stale, caveat=" ".join([*notes, "Implied volatility is a quoting convention that "
                                                             "includes a risk premium; it is not a volatility forecast."]))
         with st.expander("Raw data"):
@@ -1405,12 +1417,45 @@ def _pe_screen_view(universe: pd.DataFrame, table: pd.DataFrame, query: str, sec
     return rows.sort_values("market_cap", ascending=False, na_position="last")
 
 
+def _screen_targets(view: pd.DataFrame, prices: pd.DataFrame) -> tuple[pd.DataFrame, list[str], bool]:
+    """Adds price (last completed close, listing currency), target (Yahoo's mean analyst target, from the saved
+    snapshot: no Yahoo calls) and upside (% from price to target) to the screen rows. Returns the rows, footer notes
+    and whether the snapshot is STALE (its usual date over data.TARGETS_STALE_DAYS old)."""
+    snap = data.load_targets_snapshot()
+    added = data.added_tickers()
+    added_close, _ = data.load_added_prices("close")  # its notice was shown above
+    price, target = {}, {}
+    for t in view.index:
+        src = prices if t in prices else added_close
+        close = src[t].dropna() if t in src else pd.Series(dtype=float)
+        price[t] = float(close.iloc[-1]) if not close.empty else float("nan")
+        entry = snap.get(t) or {}
+        cur = added[t].get("currency") if t in added else "USD"
+        same = entry.get("currency") in (None, cur)   # compare like with like: no FX conversion
+        target[t] = entry.get("targets", {}).get("mean", float("nan")) if same else float("nan")
+    out = view.assign(price=pd.Series(price), target=pd.Series(target))
+    out["upside"] = (out["target"] / out["price"] - 1) * 100
+    dates = pd.Series([snap[t]["saved"] for t in view.index if t in snap and snap[t].get("saved")])
+    notes, stale = [], False
+    if dates.empty:
+        notes.append("No analyst target snapshot yet: Target and Upside show —.")
+    else:
+        usual = dt.date.fromisoformat(dates.mode().iloc[0])
+        stale = (dt.date.today() - usual).days > data.TARGETS_STALE_DAYS
+        notes.append(f"Target = Yahoo's mean analyst target (consensus, no date per analyst), saved {usual:%d %b %Y} "
+                     "with the weekly share-count download; Upside = target / last close − 1. Price and target are in "
+                     "the listing's currency. It is the analysts' view, not this dashboard's. — where Yahoo lists no "
+                     "target or no snapshot exists.")
+    return out, notes, stale
+
+
 def _pe_screen_styler(view: pd.DataFrame, cols: dict[str, str]):
     """Display frame (company, ticker, then numbers in the order the owner asked for) with house number formats;
     σ is shaded. Sorting in the table uses the underlying numbers, not the formatted text."""
     shown = view.reset_index().rename(columns=cols)[list(cols.values())]
     formats = {cols["market_cap"]: (1, False), cols["pe"]: (1, False), cols["pe_z"]: (1, True),
-               cols["sector_pe"]: (1, False)}
+               cols["sector_pe"]: (1, False), cols["price"]: (2, False), cols["target"]: (2, False),
+               cols["upside"]: (1, True)}
     styler = shown.style.format({c: (lambda v, d=d: theme.fmt_signed(v, d)) if signed else
                                  (lambda v, d=d: theme.fmt_num(v, d)) for c, (d, signed) in formats.items()},
                                 na_rep=theme.MISSING)
@@ -1471,7 +1516,7 @@ def render_pe_screen_panel(lookback_years: int) -> None:
                                         help="GICS sectors to show. Leave empty to show every sector.")
 
         available = not (prices.empty or universe.empty)
-        sm, view, asof, added_notes = None, pd.DataFrame(), None, []
+        sm, view, asof, added_notes, target_notes, targets_stale = None, pd.DataFrame(), None, [], [], False
         if available:
             asof = prices.index[-1]
             sector_of = universe.set_index("ticker")["sector"]
@@ -1479,6 +1524,7 @@ def render_pe_screen_panel(lookback_years: int) -> None:
             table = valuation.pe_screen(prices, eps_all, shares, sector_of, cutoff)
             added_rows = _added_screen_rows(prices, eps_all, shares, cutoff, added_notes)
             view = _pe_screen_view(universe, table, query, picked, added_rows)
+            view, target_notes, targets_stale = _screen_targets(view, prices)
             sm = summarise_pe_screen(view["pe_z"], window, asof)
         with head:
             theme.panel_header(title, subtitle, sm.text if sm else "")
@@ -1486,7 +1532,8 @@ def render_pe_screen_panel(lookback_years: int) -> None:
             _pe_screen_add_button(query, universe, view)
 
         cols = {"name": "Company", "ticker": "Ticker", "market_cap": "Market cap (USD bn)", "pe": "Fwd P/E (x)",
-                "pe_z": f"P/E σ vs {window} avg", "sector": "Sector", "sector_pe": "Sector P/E (x)"}
+                "pe_z": f"P/E σ vs {window} avg", "sector": "Sector", "sector_pe": "Sector P/E (x)",
+                "price": "Price", "target": "Target (mean)", "upside": "Upside (%)"}
         if not view.empty:
             st.dataframe(_pe_screen_styler(view, cols), hide_index=True, width="stretch", height=SCREEN_HEIGHT,
                          column_config={"Company": st.column_config.TextColumn(pinned=True)})
@@ -1507,8 +1554,9 @@ def render_pe_screen_panel(lookback_years: int) -> None:
             "comparison chart. Market cap = today's shares outstanding per share class × last completed close.",
             "Shading: a P/E below its own average uses the up colour; it saturates at the 95th percentile.",
             *added_notes,
+            *target_notes,
         ]
-        theme.panel_footer(STOCK_SOURCE, FREQ_NAMES["D"], asof, stale=bool(sm and sm.stale),
+        theme.panel_footer(STOCK_SOURCE, FREQ_NAMES["D"], asof, stale=bool(sm and sm.stale) or targets_stale,
                            caveat=" ".join([*notes, PE_CAVEAT]))
 
 

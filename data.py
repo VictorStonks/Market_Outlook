@@ -316,16 +316,18 @@ def _shares_current() -> bool:
     return SHARES_FILE.exists() and dt.datetime.now() - dt.datetime.fromtimestamp(SHARES_FILE.stat().st_mtime) <= SHARES_MAX_AGE
 
 
-def _fetch_shares(ticker: str) -> float | None:
-    """Shares outstanding for one ticker; None when Yahoo has none. One retry after an error (rate limit)."""
+def _fetch_shares(ticker: str) -> tuple[float | None, dict | None]:
+    """Shares outstanding for one ticker (None when Yahoo has none) and, from the same `info` response, its analyst
+    targets entry (None when the response is unusable). One retry after an error (rate limit)."""
     for attempt in range(2):
         try:
-            n = yf.Ticker(ticker).info.get("sharesOutstanding")
-            return float(n) if n and n > 0 else None
+            info = yf.Ticker(ticker).info or {}
+            n = info.get("sharesOutstanding")
+            return (float(n) if n and n > 0 else None), _targets_from_info(info)
         except Exception:
             if attempt == 0:
                 time.sleep(1.5)
-    return None
+    return None, None
 
 
 def _download_and_save_shares() -> None:
@@ -334,14 +336,17 @@ def _download_and_save_shares() -> None:
         raise ValueError("no S&P 500 list to download share counts for")
     tickers = universe["ticker"].tolist()
     with ThreadPoolExecutor(max_workers=_SHARES_WORKERS) as pool:
-        counts = list(pool.map(_fetch_shares, tickers))
-    shares = pd.Series(counts, index=pd.Index(tickers, name="ticker"), name="shares", dtype=float).dropna()
+        got = list(pool.map(_fetch_shares, tickers))
+    shares = pd.Series([n for n, _ in got], index=pd.Index(tickers, name="ticker"), name="shares",
+                       dtype=float).dropna()
     if len(shares) < _MIN_SHARES_TICKERS:
         raise ValueError(f"only {len(shares)} tickers returned share counts")
     SHARES_FILE.parent.mkdir(parents=True, exist_ok=True)
     tmp = SHARES_FILE.with_suffix(".tmp")
     shares.to_csv(tmp)
     tmp.replace(SHARES_FILE)
+    # the same responses carry analyst targets: save them too, at no extra Yahoo calls (DESIGN.md 14)
+    _save_targets_bulk({t: entry for t, (_, entry) in zip(tickers, got) if entry is not None})
 
 
 @st.cache_data
@@ -689,6 +694,8 @@ def _fetch_meta(ticker: str) -> dict:
             info = {"currency": fast.get("currency"), "exchangeTimezoneName": fast.get("timezone"), **info}
         except Exception as exc:
             log.warning("Yahoo fast_info failed for %s: %s", ticker, exc)
+    if (entry := _targets_from_info(info)) is not None:   # same response: keep the targets snapshot current too
+        _save_targets_bulk({ticker: entry})
     shares = info.get("sharesOutstanding")
     return {
         "name": info.get("longName") or info.get("shortName") or ticker,
@@ -853,43 +860,101 @@ def fx_to_usd(currency: str | None) -> float | None:
     return rate / divisor if rate > 0 else None
 
 
-# ---------- Listed options: Yahoo option chains, fetched on demand ----------
+# ---------- Listed options: Cboe delayed quotes, Yahoo as fallback, fetched on demand ----------
 
-# A snapshot only: Yahoo keeps no history of open interest, and it is not saved to disk (owner's choice). The last
-# good chain per request is kept for the server process, as for FRED series, so an outage still shows labelled data.
-_OPTION_WORKERS = 4            # parallel chain requests for "All expiries"; more risks rate limiting
+# A snapshot only: open interest has no free history, and it is not saved to disk (owner's choice). Source order
+# (owner's choice, 2026-10-11): Cboe's public delayed quotes first (one request per stock returns every expiry; no
+# key; for personal, non-commercial use), then Yahoo via yfinance. Yahoo rate-limits shared cloud hosts such as
+# Streamlit Cloud ("Crumb fetch rate-limited (HTTP 429)") and then returns no options WITHOUT raising, so an empty
+# Yahoo answer is treated as a failure. The last good result per request is kept for the server process, as for
+# FRED series, so an outage still shows labelled data.
+CBOE_URL = "https://cdn.cboe.com/api/global/delayed_quotes/options/{}.json"
+CBOE_SOURCE = "Cboe delayed quotes"
+YAHOO_SOURCE = "Yahoo Finance via yfinance"
+_OCC = r"^(?P<root>.+?)(?P<date>\d{6})(?P<cp>[CP])(?P<strike>\d{8})$"   # OCC symbol: root, YYMMDD, C/P, strike x 1000
+_OPTION_WORKERS = 4            # parallel Yahoo chain requests for "All expiries"; more risks rate limiting
 _LAST_GOOD_OPTIONS: dict[tuple[str, str], tuple[pd.DataFrame, dict]] = {}
-
-
 _LAST_GOOD_EXPIRIES: dict[str, list[pd.Timestamp]] = {}
 
 
 @st.cache_data(ttl=3600)
+def _fetch_cboe(ticker: str) -> tuple[pd.DataFrame, dict] | None:
+    """Every listed contract as tidy rows (expiry, type, strike, oi, iv, bid, ask) and the underlying's quote (spot,
+    currency, quote time, source); None when Cboe lists no options for the ticker (it answers 403 for symbols it does
+    not carry, e.g. non-US listings). Raises on any other failure, so failures are never cached."""
+    resp = requests.get(CBOE_URL.format(ticker.upper().replace("-", ".")), timeout=20,
+                        headers={"User-Agent": "Mozilla/5.0"})
+    if resp.status_code in (403, 404):
+        return None
+    resp.raise_for_status()
+    quote = resp.json()["data"]
+    raw = pd.DataFrame(quote.get("options") or [])
+    if raw.empty:
+        return None
+    parts = raw["option"].str.extract(_OCC)
+    keep = parts["root"] == parts["root"].mode().iloc[0]   # standard contracts only, not split-adjusted ("AAPL1")
+    raw, parts = raw[keep], parts[keep]
+    chain = pd.DataFrame({
+        "expiry": pd.to_datetime(parts["date"], format="%y%m%d"),
+        "type": parts["cp"].map({"C": "call", "P": "put"}),
+        "strike": pd.to_numeric(parts["strike"]) / 1000,
+        "oi": pd.to_numeric(raw["open_interest"], errors="coerce").fillna(0.0),
+        "iv": pd.to_numeric(raw["iv"], errors="coerce"),
+        "bid": pd.to_numeric(raw["bid"], errors="coerce"),
+        "ask": pd.to_numeric(raw["ask"], errors="coerce"),
+    }).dropna(subset=["expiry", "type", "strike"])
+    spot = quote.get("current_price") or quote.get("close")
+    if not spot:
+        raise ValueError("no underlying price in the Cboe quote")
+    stamp = quote.get("last_trade_time")   # the underlying's last trade, New York time
+    when = pd.Timestamp(stamp).tz_localize(US_EASTERN) if stamp else pd.Timestamp.now(tz=US_EASTERN)
+    info = {"spot": float(spot), "currency": "USD", "quote_time": when.tz_convert("UTC"), "source": CBOE_SOURCE}
+    return chain.sort_values(["expiry", "type", "strike"]).reset_index(drop=True), info
+
+
+@st.cache_data(ttl=3600)
 def _fetch_expiries(ticker: str) -> list[pd.Timestamp]:
-    """Listed expiries, nearest first; empty when Yahoo lists none (non-US listings). Raises on a failed fetch, so a
-    failure is never cached (Yahoo rate-limits shared cloud hosts; a cached [] would hide options for an hour)."""
-    return [pd.Timestamp(e) for e in yf.Ticker(ticker).options]
+    """Yahoo's listed expiries, nearest first. Raises on a failed fetch AND on an empty answer (what Yahoo returns when
+    it rate-limits), so neither is cached."""
+    out = [pd.Timestamp(e) for e in yf.Ticker(ticker).options]
+    if not out:
+        raise ValueError("Yahoo returned no expiries")
+    return out
 
 
 def option_expiries(ticker: str) -> tuple[list[pd.Timestamp], str | None]:
-    """Listed expiries for `ticker` and a notice; never raises. An empty list with no notice means Yahoo lists no
-    options. On a failed fetch: the last good list with a notice, or [] with a notice (DESIGN.md 5.4)."""
+    """Listed expiries for `ticker` (not yet expired, nearest first) and a notice; never raises. An empty list with no
+    notice means no options are listed (Cboe carries none). On a failed fetch from both sources: the last good list
+    with a notice, or [] with a notice naming each source's error (DESIGN.md 5.4)."""
+    errors = []
+    try:
+        got = _fetch_cboe(ticker)
+        if got is None:
+            return [], None
+        today = pd.Timestamp.now(tz=US_EASTERN).normalize().tz_localize(None)
+        out = [pd.Timestamp(e) for e in sorted(got[0]["expiry"].unique()) if e >= today]
+        _LAST_GOOD_EXPIRIES[ticker] = out
+        return out, None
+    except Exception as exc:
+        log.warning("Cboe option fetch failed for %s: %s", ticker, exc)
+        errors.append(f"Cboe: {type(exc).__name__}")
     try:
         out = _fetch_expiries(ticker)
         _LAST_GOOD_EXPIRIES[ticker] = out
         return out, None
     except Exception as exc:
-        log.warning("Option expiries fetch failed for %s: %s", ticker, exc)
-        reason = type(exc).__name__
+        log.warning("Yahoo option expiries fetch failed for %s: %s", ticker, exc)
+        errors.append(f"Yahoo: {exc}" if isinstance(exc, ValueError) else f"Yahoo: {type(exc).__name__}")
+    reason = "; ".join(errors)
     if ticker in _LAST_GOOD_EXPIRIES:
         return _LAST_GOOD_EXPIRIES[ticker], f"Fetch failed for {ticker} option expiries ({reason}); showing an earlier list."
-    return [], (f"Fetch failed for {ticker} option expiries ({reason}): Yahoo Finance did not respond or limited the "
-                "request. Try again in a few minutes.")
+    return [], (f"Fetch failed for {ticker} option expiries ({reason}): the data sources did not respond or limited "
+                "the request. Try again in a few minutes.")
 
 
 def _fetch_option_chain(ticker: str, expiry: pd.Timestamp) -> tuple[pd.DataFrame, dict]:
-    """One expiry's chain as tidy rows (expiry, type, strike, oi, iv) and the underlying's quote (spot, currency,
-    quote time). Raises on failure."""
+    """One expiry's chain from Yahoo as tidy rows (expiry, type, strike, oi, iv, bid, ask) and the underlying's quote
+    (spot, currency, quote time, source). Raises on failure."""
     chain = yf.Ticker(ticker).option_chain(f"{expiry:%Y-%m-%d}")
     rows = []
     for kind, frame in (("call", chain.calls), ("put", chain.puts)):
@@ -903,7 +968,8 @@ def _fetch_option_chain(ticker: str, expiry: pd.Timestamp) -> tuple[pd.DataFrame
     quote = chain.underlying if isinstance(chain.underlying, dict) else {}
     stamp = quote.get("regularMarketTime")
     info = {"spot": quote.get("regularMarketPrice"), "currency": quote.get("currency") or ticker_currency(ticker),
-            "quote_time": pd.Timestamp(stamp, unit="s", tz="UTC") if stamp else pd.Timestamp.now(tz="UTC")}
+            "quote_time": pd.Timestamp(stamp, unit="s", tz="UTC") if stamp else pd.Timestamp.now(tz="UTC"),
+            "source": YAHOO_SOURCE}
     return pd.concat(rows, ignore_index=True), info
 
 
@@ -919,15 +985,25 @@ def _fetch_options(ticker: str, expiries: tuple[pd.Timestamp, ...]) -> tuple[pd.
 
 
 def load_options(ticker: str, expiries: list[pd.Timestamp]) -> tuple[pd.DataFrame, dict, str | None]:
-    """Chains for `expiries` stacked into one frame, the underlying's latest quote and a notice; never raises. Falls
-    back to the last good copy of the same request with a notice (DESIGN.md 5.4); empty frame when there is none."""
+    """Chains for `expiries` stacked into one frame, the underlying's latest quote (with its "source") and a notice;
+    never raises. Cboe first, then Yahoo; then the last good copy of the same request with a notice (DESIGN.md 5.4);
+    empty frame when there is none."""
     key = (ticker, ",".join(f"{e:%Y%m%d}" for e in expiries))
+    try:
+        got = _fetch_cboe(ticker)
+        if got is not None:
+            chain = got[0][got[0]["expiry"].isin(expiries)].reset_index(drop=True)
+            if not chain.empty:
+                _LAST_GOOD_OPTIONS[key] = (chain, got[1])
+                return chain, got[1], None
+    except Exception as exc:
+        log.warning("Cboe option chain fetch failed for %s: %s", ticker, exc)
     try:
         chain, info = _fetch_options(ticker, tuple(expiries))
         _LAST_GOOD_OPTIONS[key] = (chain, info)
         return chain, info, None
     except Exception as exc:
-        log.warning("Option chain fetch failed for %s: %s", ticker, exc)
+        log.warning("Yahoo option chain fetch failed for %s: %s", ticker, exc)
     if key in _LAST_GOOD_OPTIONS:
         chain, info = _LAST_GOOD_OPTIONS[key]
         return chain, info, (f"Fetch failed for {ticker} options; showing the chain fetched "
@@ -936,34 +1012,118 @@ def load_options(ticker: str, expiries: list[pd.Timestamp]) -> tuple[pd.DataFram
 
 
 # Analyst price targets: Yahoo's consensus (mean, median, low, high) and analyst count, one `info` call per stock, on
-# demand. Yahoo gives no date per analyst, so some targets inside the consensus may be months old.
+# demand. Yahoo gives no date per analyst, so some targets inside the consensus may be months old. Yahoo blocks this
+# call from shared cloud hosts (Streamlit Cloud), so every successful live fetch is also saved to TARGETS_FILE, which
+# is committed like the other caches and used when the live fetch fails (owner's choice, 2026-10-11). The file holds
+# the stocks viewed on a machine Yahoo answers (the owner's laptop); the footer gives the snapshot's date.
+TARGETS_FILE = Path(__file__).parent / "cache" / "analyst_targets.json"
+TARGETS_STALE_DAYS = 30        # snapshot older than this shows STALE
+TARGETS_RESAVE_DAYS = 7        # unchanged targets are re-saved (new date) at most this often, to limit commit churn
 _LAST_GOOD_TARGETS: dict[str, dict] = {}
 TARGET_FIELDS = {"mean": "targetMeanPrice", "median": "targetMedianPrice", "low": "targetLowPrice",
                  "high": "targetHighPrice"}
+_targets_lock = threading.Lock()
 
 
-@st.cache_data(ttl=6 * 3600)
-def _fetch_targets(ticker: str) -> dict:
-    """{mean, median, low, high} (only the positive ones), analysts, currency; raises on a failed fetch."""
-    info = yf.Ticker(ticker).info or {}
+def _targets_from_info(info: dict) -> dict | None:
+    """{"targets": {mean, median, low, high} (positive ones only), "analysts", "currency"} from a Yahoo `info` response;
+    None when the response is the near-empty one Yahoo returns when it rate-limits (no quoteType), so that is never
+    mistaken for "no targets"."""
+    if not info.get("quoteType"):
+        return None
     targets = {k: float(info[f]) for k, f in TARGET_FIELDS.items() if isinstance(info.get(f), (int, float))
                and info[f] > 0}
     return {"targets": targets, "analysts": info.get("numberOfAnalystOpinions"), "currency": info.get("currency")}
 
 
+@st.cache_data(ttl=6 * 3600)
+def _fetch_targets(ticker: str) -> dict:
+    """One stock's targets entry (see _targets_from_info); raises on a failed or rate-limited fetch."""
+    out = _targets_from_info(yf.Ticker(ticker).info or {})
+    if out is None:
+        raise ValueError("Yahoo returned no quote data")
+    return out
+
+
+def _read_targets_file() -> dict[str, dict]:
+    try:
+        return json.loads(TARGETS_FILE.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return {}
+    except Exception as exc:
+        log.warning("Analyst target snapshot unreadable: %s", exc)
+        return {}
+
+
+@st.cache_data
+def _read_targets_cached(saved_at: float) -> dict[str, dict]:
+    """The snapshot, re-read only when the file changes (`saved_at` = its mtime is the cache key)."""
+    return _read_targets_file()
+
+
+def load_targets_snapshot() -> dict[str, dict]:
+    """Every saved targets entry by ticker ({targets, analysts, currency, saved}); {} when there is no snapshot. No
+    Yahoo calls: for tables over the whole universe (the forward P/E screen)."""
+    try:
+        return _read_targets_cached(TARGETS_FILE.stat().st_mtime)
+    except FileNotFoundError:
+        return {}
+
+
+def _save_targets_bulk(entries: dict[str, dict]) -> None:
+    """Write many fresh entries at once (the weekly share-count download), dated today; other tickers in the file
+    (e.g. added tickers) are kept. Never raises."""
+    if not entries:
+        return
+    today = dt.date.today().isoformat()
+    try:
+        with _targets_lock:
+            saved = _read_targets_file()
+            saved.update({t: {**e, "saved": today} for t, e in entries.items()})
+            _write_atomic(TARGETS_FILE, lambda p: p.write_text(json.dumps(saved, indent=1, sort_keys=True),
+                                                               encoding="utf-8"))
+    except Exception as exc:
+        log.warning("Could not save the analyst target snapshot (%d tickers): %s", len(entries), exc)
+
+
+def _save_targets(ticker: str, out: dict) -> None:
+    """Record a live fetch in TARGETS_FILE when the values changed or the saved copy is over TARGETS_RESAVE_DAYS old.
+    Never raises: the snapshot is a fallback, not a requirement."""
+    today = dt.date.today()
+    try:
+        with _targets_lock:
+            saved = _read_targets_file()
+            prev = saved.get(ticker)
+            same = prev is not None and all(prev.get(k) == out[k] for k in ("targets", "analysts", "currency"))
+            if same and (today - dt.date.fromisoformat(prev["saved"])).days < TARGETS_RESAVE_DAYS:
+                return
+            saved[ticker] = {**out, "saved": today.isoformat()}
+            _write_atomic(TARGETS_FILE, lambda p: p.write_text(json.dumps(saved, indent=1, sort_keys=True),
+                                                               encoding="utf-8"))
+    except Exception as exc:
+        log.warning("Could not save the analyst target snapshot for %s: %s", ticker, exc)
+
+
 def load_price_targets(ticker: str) -> tuple[dict, str | None]:
     """Analyst targets for `ticker` and a notice; never raises. "targets" is empty when Yahoo lists none (ETFs,
-    indices, uncovered stocks). Falls back to the last good copy with a notice (DESIGN.md 5.4)."""
+    indices, uncovered stocks); "saved" is the snapshot date (ISO) when the values come from TARGETS_FILE, else None.
+    Live first, then the last good copy in memory, then the saved snapshot, each with a notice (DESIGN.md 5.4)."""
     try:
         out = _fetch_targets(ticker)
         _LAST_GOOD_TARGETS[ticker] = out
-        return out, None
+        _save_targets(ticker, out)
+        return {**out, "saved": None}, None
     except Exception as exc:
         log.warning("Analyst target fetch failed for %s: %s", ticker, exc)
     if ticker in _LAST_GOOD_TARGETS:
-        return _LAST_GOOD_TARGETS[ticker], f"Fetch failed for {ticker} analyst targets; showing an earlier copy."
-    return {"targets": {}, "analysts": None, "currency": None}, \
-        f"Fetch failed for {ticker} analyst targets; the distribution is shown without them."
+        return {**_LAST_GOOD_TARGETS[ticker], "saved": None}, \
+            f"Fetch failed for {ticker} analyst targets; showing an earlier copy."
+    snap = _read_targets_file().get(ticker)
+    if snap:
+        return snap, None   # the panel states the snapshot date in its footer
+    return {"targets": {}, "analysts": None, "currency": None, "saved": None}, \
+        (f"Yahoo Finance did not return analyst targets for {ticker} (it limits requests from shared cloud servers), "
+         "and no saved snapshot exists for it; the distribution is shown without them.")
 
 
 # ---------- Shiller CAPE data: saved by hand ----------

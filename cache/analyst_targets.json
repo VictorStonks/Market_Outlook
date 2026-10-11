@@ -1,0 +1,5515 @@
+{
+ "A": {
+  "analysts": 20,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 195.0,
+   "low": 155.0,
+   "mean": 178.5,
+   "median": 180.0
+  }
+ },
+ "AAPL": {
+  "analysts": 39,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 405.0,
+   "low": 215.0,
+   "mean": 328.09384,
+   "median": 340.0
+  }
+ },
+ "ABBV": {
+  "analysts": 28,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 328.0,
+   "low": 200.0,
+   "mean": 282.60715,
+   "median": 286.5
+  }
+ },
+ "ABNB": {
+  "analysts": 39,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 220.0,
+   "low": 135.0,
+   "mean": 183.5641,
+   "median": 185.0
+  }
+ },
+ "ABT": {
+  "analysts": 26,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 135.0,
+   "low": 103.0,
+   "mean": 120.715,
+   "median": 120.0
+  }
+ },
+ "ACGL": {
+  "analysts": 19,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 129.0,
+   "low": 95.0,
+   "mean": 111.07895,
+   "median": 110.0
+  }
+ },
+ "ACN": {
+  "analysts": 24,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 275.0,
+   "low": 163.0,
+   "mean": 223.65459,
+   "median": 223.0
+  }
+ },
+ "ADBE": {
+  "analysts": 32,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 373.0,
+   "low": 195.0,
+   "mean": 275.06375,
+   "median": 265.5
+  }
+ },
+ "ADI": {
+  "analysts": 32,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 675.0,
+   "low": 365.0,
+   "mean": 470.71875,
+   "median": 463.5
+  }
+ },
+ "ADM": {
+  "analysts": 10,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 95.0,
+   "low": 60.0,
+   "mean": 80.4,
+   "median": 82.5
+  }
+ },
+ "ADP": {
+  "analysts": 15,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 322.0,
+   "low": 225.0,
+   "mean": 286.4,
+   "median": 287.0
+  }
+ },
+ "ADSK": {
+  "analysts": 34,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 375.0,
+   "low": 215.0,
+   "mean": 307.54147,
+   "median": 302.5
+  }
+ },
+ "AEE": {
+  "analysts": 16,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 136.0,
+   "low": 104.0,
+   "mean": 117.875,
+   "median": 118.5
+  }
+ },
+ "AEP": {
+  "analysts": 20,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 173.0,
+   "low": 128.0,
+   "mean": 142.525,
+   "median": 141.0
+  }
+ },
+ "AES": {
+  "analysts": 8,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 15.0,
+   "low": 15.0,
+   "mean": 15.0,
+   "median": 15.0
+  }
+ },
+ "AFL": {
+  "analysts": 15,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 138.0,
+   "low": 101.0,
+   "mean": 117.8,
+   "median": 116.0
+  }
+ },
+ "AIG": {
+  "analysts": 20,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 101.0,
+   "low": 80.0,
+   "mean": 88.2,
+   "median": 88.0
+  }
+ },
+ "AIZ": {
+  "analysts": 6,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 355.0,
+   "low": 300.0,
+   "mean": 326.66666,
+   "median": 327.0
+  }
+ },
+ "AJG": {
+  "analysts": 18,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 388.0,
+   "low": 250.0,
+   "mean": 284.16666,
+   "median": 282.5
+  }
+ },
+ "AKAM": {
+  "analysts": 22,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 225.0,
+   "low": 93.0,
+   "mean": 158.87318,
+   "median": 161.5
+  }
+ },
+ "ALB": {
+  "analysts": 20,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 225.0,
+   "low": 83.28,
+   "mean": 168.564,
+   "median": 170.0
+  }
+ },
+ "ALGN": {
+  "analysts": 14,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 235.0,
+   "low": 155.0,
+   "mean": 199.2143,
+   "median": 199.5
+  }
+ },
+ "ALL": {
+  "analysts": 22,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 336.0,
+   "low": 191.0,
+   "mean": 270.54544,
+   "median": 270.5
+  }
+ },
+ "ALLE": {
+  "analysts": 11,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 202.0,
+   "low": 160.0,
+   "mean": 178.0,
+   "median": 170.0
+  }
+ },
+ "AMAT": {
+  "analysts": 36,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 900.0,
+   "low": 358.0,
+   "mean": 635.3333,
+   "median": 645.5
+  }
+ },
+ "AMCR": {
+  "analysts": 12,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 60.0,
+   "low": 42.0,
+   "mean": 49.7625,
+   "median": 49.0
+  }
+ },
+ "AMD": {
+  "analysts": 50,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 1250.0,
+   "low": 365.0,
+   "mean": 636.208,
+   "median": 635.5
+  }
+ },
+ "AME": {
+  "analysts": 18,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 318.0,
+   "low": 217.0,
+   "mean": 281.94443,
+   "median": 283.5
+  }
+ },
+ "AMGN": {
+  "analysts": 29,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 500.0,
+   "low": 225.0,
+   "mean": 395.25415,
+   "median": 405.0
+  }
+ },
+ "AMP": {
+  "analysts": 11,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 645.0,
+   "low": 483.0,
+   "mean": 568.4545,
+   "median": 561.0
+  }
+ },
+ "AMT": {
+  "analysts": 23,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 260.0,
+   "low": 188.0,
+   "mean": 215.73914,
+   "median": 210.0
+  }
+ },
+ "AMZN": {
+  "analysts": 58,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 405.0,
+   "low": 230.0,
+   "mean": 331.53,
+   "median": 330.0
+  }
+ },
+ "ANET": {
+  "analysts": 29,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 289.0,
+   "low": 190.0,
+   "mean": 243.69,
+   "median": 248.0
+  }
+ },
+ "AON": {
+  "analysts": 19,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 435.0,
+   "low": 229.0,
+   "mean": 362.21054,
+   "median": 375.0
+  }
+ },
+ "AOS": {
+  "analysts": 11,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 84.0,
+   "low": 59.0,
+   "mean": 69.90909,
+   "median": 70.0
+  }
+ },
+ "APA": {
+  "analysts": 25,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 62.0,
+   "low": 36.0,
+   "mean": 46.44,
+   "median": 47.0
+  }
+ },
+ "APD": {
+  "analysts": 19,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 373.0,
+   "low": 305.0,
+   "mean": 342.5263,
+   "median": 351.0
+  }
+ },
+ "APH": {
+  "analysts": 19,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 116.0,
+   "low": 85.0,
+   "mean": 101.65789,
+   "median": 100.0
+  }
+ },
+ "APO": {
+  "analysts": 20,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 173.0,
+   "low": 127.0,
+   "mean": 151.45,
+   "median": 152.0
+  }
+ },
+ "APP": {
+  "analysts": 31,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 790.0,
+   "low": 325.0,
+   "mean": 487.6584,
+   "median": 470.0
+  }
+ },
+ "APTV": {
+  "analysts": 18,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 77.0,
+   "low": 55.0,
+   "mean": 65.44444,
+   "median": 63.0
+  }
+ },
+ "ARE": {
+  "analysts": 14,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 60.0,
+   "low": 40.0,
+   "mean": 52.57143,
+   "median": 52.5
+  }
+ },
+ "ARES": {
+  "analysts": 20,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 168.0,
+   "low": 122.0,
+   "mean": 146.65,
+   "median": 146.0
+  }
+ },
+ "ATO": {
+  "analysts": 11,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 206.0,
+   "low": 167.0,
+   "mean": 185.0,
+   "median": 183.0
+  }
+ },
+ "AVGO": {
+  "analysts": 47,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 715.0,
+   "low": 215.88,
+   "mean": 531.3149,
+   "median": 535.0
+  }
+ },
+ "AVY": {
+  "analysts": 10,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 225.0,
+   "low": 181.0,
+   "mean": 199.6,
+   "median": 196.0
+  }
+ },
+ "AWK": {
+  "analysts": 11,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 162.0,
+   "low": 128.0,
+   "mean": 141.45454,
+   "median": 140.0
+  }
+ },
+ "AXON": {
+  "analysts": 19,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 830.0,
+   "low": 440.0,
+   "mean": 697.2632,
+   "median": 700.0
+  }
+ },
+ "AXP": {
+  "analysts": 25,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 450.0,
+   "low": 320.0,
+   "mean": 371.1156,
+   "median": 380.0
+  }
+ },
+ "AZO": {
+  "analysts": 23,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 4800.0,
+   "low": 3000.0,
+   "mean": 3719.9565,
+   "median": 3648.0
+  }
+ },
+ "BA": {
+  "analysts": 27,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 305.0,
+   "low": 240.0,
+   "mean": 272.44443,
+   "median": 270.0
+  }
+ },
+ "BAC": {
+  "analysts": 22,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 75.0,
+   "low": 60.0,
+   "mean": 66.59091,
+   "median": 66.5
+  }
+ },
+ "BALL": {
+  "analysts": 14,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 79.0,
+   "low": 63.0,
+   "mean": 71.85714,
+   "median": 72.5
+  }
+ },
+ "BAX": {
+  "analysts": 12,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 40.0,
+   "low": 20.0,
+   "mean": 27.91667,
+   "median": 27.5
+  }
+ },
+ "BBY": {
+  "analysts": 20,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 100.0,
+   "low": 71.0,
+   "mean": 86.95,
+   "median": 85.0
+  }
+ },
+ "BDX": {
+  "analysts": 13,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 225.0,
+   "low": 165.0,
+   "mean": 194.07692,
+   "median": 195.0
+  }
+ },
+ "BE": {
+  "analysts": 26,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 390.0,
+   "low": 97.0,
+   "mean": 284.73846,
+   "median": 303.0
+  }
+ },
+ "BEN": {
+  "analysts": 13,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 41.0,
+   "low": 26.0,
+   "mean": 35.76923,
+   "median": 36.0
+  }
+ },
+ "BF-B": {
+  "analysts": 17,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 35.0,
+   "low": 20.0,
+   "mean": 28.25882,
+   "median": 28.0
+  }
+ },
+ "BG": {
+  "analysts": 9,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 155.0,
+   "low": 116.0,
+   "mean": 141.77779,
+   "median": 140.0
+  }
+ },
+ "BIIB": {
+  "analysts": 31,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 300.0,
+   "low": 175.0,
+   "mean": 239.18195,
+   "median": 241.0
+  }
+ },
+ "BKNG": {
+  "analysts": 35,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 301.0,
+   "low": 170.0,
+   "mean": 233.82857,
+   "median": 240.0
+  }
+ },
+ "BKR": {
+  "analysts": 24,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 85.0,
+   "low": 51.0,
+   "mean": 71.16667,
+   "median": 73.0
+  }
+ },
+ "BLK": {
+  "analysts": 17,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 1479.0,
+   "low": 1190.0,
+   "mean": 1312.8823,
+   "median": 1287.0
+  }
+ },
+ "BMY": {
+  "analysts": 24,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 82.0,
+   "low": 41.0,
+   "mean": 65.70833,
+   "median": 65.5
+  }
+ },
+ "BNY": {
+  "analysts": 15,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 182.0,
+   "low": 135.0,
+   "mean": 163.46667,
+   "median": 161.0
+  }
+ },
+ "BR": {
+  "analysts": 8,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 250.0,
+   "low": 176.0,
+   "mean": 213.375,
+   "median": 220.0
+  }
+ },
+ "BRK-B": {
+  "analysts": 3,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 604.0,
+   "low": 510.0,
+   "mean": 547.6667,
+   "median": 529.0
+  }
+ },
+ "BRO": {
+  "analysts": 17,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 90.0,
+   "low": 55.0,
+   "mean": 74.64706,
+   "median": 74.0
+  }
+ },
+ "BSX": {
+  "analysts": 29,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 94.0,
+   "low": 44.0,
+   "mean": 59.72414,
+   "median": 57.0
+  }
+ },
+ "BX": {
+  "analysts": 22,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 184.0,
+   "low": 119.0,
+   "mean": 141.63635,
+   "median": 138.0
+  }
+ },
+ "BXP": {
+  "analysts": 20,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 91.0,
+   "low": 60.0,
+   "mean": 75.95,
+   "median": 76.5
+  }
+ },
+ "C": {
+  "analysts": 21,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 170.0,
+   "low": 130.0,
+   "mean": 152.19048,
+   "median": 154.0
+  }
+ },
+ "CAH": {
+  "analysts": 15,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 292.0,
+   "low": 235.0,
+   "mean": 270.33334,
+   "median": 275.0
+  }
+ },
+ "CARR": {
+  "analysts": 23,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 90.0,
+   "low": 60.0,
+   "mean": 74.65739,
+   "median": 75.0
+  }
+ },
+ "CASY": {
+  "analysts": 19,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 933.0,
+   "low": 687.0,
+   "mean": 795.7895,
+   "median": 780.0
+  }
+ },
+ "CAT": {
+  "analysts": 26,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 1155.0,
+   "low": 575.0,
+   "mean": 970.79846,
+   "median": 980.5
+  }
+ },
+ "CB": {
+  "analysts": 23,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 425.0,
+   "low": 307.0,
+   "mean": 366.86957,
+   "median": 365.0
+  }
+ },
+ "CBOE": {
+  "analysts": 15,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 358.0,
+   "low": 288.0,
+   "mean": 320.46667,
+   "median": 316.0
+  }
+ },
+ "CBRE": {
+  "analysts": 12,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 200.0,
+   "low": 144.0,
+   "mean": 181.33333,
+   "median": 186.5
+  }
+ },
+ "CCI": {
+  "analysts": 21,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 120.0,
+   "low": 80.0,
+   "mean": 94.44762,
+   "median": 92.0
+  }
+ },
+ "CCL": {
+  "analysts": 26,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 43.0,
+   "low": 28.7,
+   "mean": 33.89231,
+   "median": 33.0
+  }
+ },
+ "CDNS": {
+  "analysts": 26,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 470.0,
+   "low": 300.0,
+   "mean": 406.2404,
+   "median": 415.435
+  }
+ },
+ "CDW": {
+  "analysts": 9,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 171.0,
+   "low": 148.0,
+   "mean": 158.66667,
+   "median": 159.0
+  }
+ },
+ "CEG": {
+  "analysts": 20,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 395.0,
+   "low": 290.0,
+   "mean": 341.532,
+   "median": 345.5
+  }
+ },
+ "CF": {
+  "analysts": 20,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 195.72,
+   "low": 105.0,
+   "mean": 127.686,
+   "median": 124.0
+  }
+ },
+ "CFG": {
+  "analysts": 19,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 89.0,
+   "low": 70.0,
+   "mean": 78.60526,
+   "median": 78.0
+  }
+ },
+ "CHD": {
+  "analysts": 19,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 115.0,
+   "low": 78.0,
+   "mean": 104.84211,
+   "median": 105.0
+  }
+ },
+ "CHRW": {
+  "analysts": 23,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 235.0,
+   "low": 135.0,
+   "mean": 197.47826,
+   "median": 200.0
+  }
+ },
+ "CHTR": {
+  "analysts": 18,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 380.0,
+   "low": 68.0,
+   "mean": 176.5,
+   "median": 150.0
+  }
+ },
+ "CI": {
+  "analysts": 24,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 400.0,
+   "low": 288.0,
+   "mean": 342.29166,
+   "median": 345.0
+  }
+ },
+ "CIEN": {
+  "analysts": 20,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 660.0,
+   "low": 347.0,
+   "mean": 512.9907,
+   "median": 536.5
+  }
+ },
+ "CINF": {
+  "analysts": 6,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 200.0,
+   "low": 177.0,
+   "mean": 191.0,
+   "median": 191.0
+  }
+ },
+ "CL": {
+  "analysts": 20,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 110.0,
+   "low": 87.0,
+   "mean": 98.25,
+   "median": 100.0
+  }
+ },
+ "CLX": {
+  "analysts": 17,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 154.0,
+   "low": 74.0,
+   "mean": 99.58824,
+   "median": 98.0
+  }
+ },
+ "CMCSA": {
+  "analysts": 22,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 44.0,
+   "low": 17.0,
+   "mean": 28.85409,
+   "median": 28.5
+  }
+ },
+ "CME": {
+  "analysts": 16,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 337.0,
+   "low": 217.0,
+   "mean": 289.0625,
+   "median": 290.0
+  }
+ },
+ "CMG": {
+  "analysts": 31,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 53.0,
+   "low": 35.0,
+   "mean": 43.75806,
+   "median": 44.0
+  }
+ },
+ "CMI": {
+  "analysts": 19,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 890.0,
+   "low": 530.0,
+   "mean": 737.0842,
+   "median": 760.0
+  }
+ },
+ "CMS": {
+  "analysts": 12,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 86.0,
+   "low": 68.0,
+   "mean": 77.33333,
+   "median": 77.5
+  }
+ },
+ "CNC": {
+  "analysts": 18,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 85.0,
+   "low": 56.0,
+   "mean": 71.77778,
+   "median": 70.5
+  }
+ },
+ "CNP": {
+  "analysts": 17,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 50.0,
+   "low": 38.0,
+   "mean": 44.41176,
+   "median": 44.0
+  }
+ },
+ "COF": {
+  "analysts": 22,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 290.0,
+   "low": 219.0,
+   "mean": 254.77274,
+   "median": 254.0
+  }
+ },
+ "COHR": {
+  "analysts": 23,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 500.0,
+   "low": 280.0,
+   "mean": 412.52014,
+   "median": 420.0
+  }
+ },
+ "COIN": {
+  "analysts": 33,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 330.0,
+   "low": 110.0,
+   "mean": 211.30606,
+   "median": 205.0
+  }
+ },
+ "COO": {
+  "analysts": 15,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 75.0,
+   "low": 58.0,
+   "mean": 65.8,
+   "median": 65.0
+  }
+ },
+ "COP": {
+  "analysts": 26,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 189.0,
+   "low": 126.0,
+   "mean": 147.73077,
+   "median": 147.0
+  }
+ },
+ "COR": {
+  "analysts": 12,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 430.0,
+   "low": 330.0,
+   "mean": 369.91666,
+   "median": 365.0
+  }
+ },
+ "COST": {
+  "analysts": 35,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 1315.0,
+   "low": 770.0,
+   "mean": 1060.8,
+   "median": 1065.0
+  }
+ },
+ "CPAY": {
+  "analysts": 15,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 536.0,
+   "low": 390.0,
+   "mean": 461.0,
+   "median": 455.0
+  }
+ },
+ "CPRT": {
+  "analysts": 10,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 55.0,
+   "low": 25.0,
+   "mean": 39.0,
+   "median": 37.0
+  }
+ },
+ "CPT": {
+  "analysts": 22,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 132.0,
+   "low": 102.0,
+   "mean": 115.42045,
+   "median": 114.5
+  }
+ },
+ "CRH": {
+  "analysts": 23,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 160.0,
+   "low": 96.0,
+   "mean": 127.00217,
+   "median": 131.0
+  }
+ },
+ "CRL": {
+  "analysts": 15,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 357.0,
+   "low": 145.0,
+   "mean": 310.53333,
+   "median": 322.0
+  }
+ },
+ "CRM": {
+  "analysts": 54,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 475.0,
+   "low": 160.0,
+   "mean": 283.36075,
+   "median": 282.5
+  }
+ },
+ "CRWD": {
+  "analysts": 50,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 325.0,
+   "low": 132.0,
+   "mean": 240.17,
+   "median": 245.0
+  }
+ },
+ "CSCO": {
+  "analysts": 25,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 170.0,
+   "low": 110.0,
+   "mean": 136.16,
+   "median": 135.0
+  }
+ },
+ "CSGP": {
+  "analysts": 20,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 53.0,
+   "low": 25.0,
+   "mean": 37.4,
+   "median": 35.0
+  }
+ },
+ "CSX": {
+  "analysts": 23,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 60.0,
+   "low": 32.0,
+   "mean": 52.79873,
+   "median": 54.0
+  }
+ },
+ "CTAS": {
+  "analysts": 16,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 250.0,
+   "low": 181.0,
+   "mean": 218.3125,
+   "median": 224.5
+  }
+ },
+ "CTSH": {
+  "analysts": 25,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 93.0,
+   "low": 47.0,
+   "mean": 65.904,
+   "median": 66.0
+  }
+ },
+ "CVNA": {
+  "analysts": 21,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 120.0,
+   "low": 60.0,
+   "mean": 82.28571,
+   "median": 83.0
+  }
+ },
+ "CVS": {
+  "analysts": 25,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 145.0,
+   "low": 103.0,
+   "mean": 115.76,
+   "median": 115.0
+  }
+ },
+ "CVX": {
+  "analysts": 24,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 250.0,
+   "low": 175.0,
+   "mean": 226.04167,
+   "median": 228.0
+  }
+ },
+ "D": {
+  "analysts": 12,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 87.0,
+   "low": 62.0,
+   "mean": 71.58333,
+   "median": 70.5
+  }
+ },
+ "DAL": {
+  "analysts": 24,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 125.0,
+   "low": 50.0,
+   "mean": 101.64583,
+   "median": 103.0
+  }
+ },
+ "DASH": {
+  "analysts": 42,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 350.0,
+   "low": 172.0,
+   "mean": 257.24667,
+   "median": 260.0
+  }
+ },
+ "DD": {
+  "analysts": 16,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 186.0,
+   "low": 145.0,
+   "mean": 167.0625,
+   "median": 165.5
+  }
+ },
+ "DDOG": {
+  "analysts": 47,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 340.0,
+   "low": 158.0,
+   "mean": 287.82596,
+   "median": 300.0
+  }
+ },
+ "DE": {
+  "analysts": 23,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 813.18,
+   "low": 500.0,
+   "mean": 693.57306,
+   "median": 728.0
+  }
+ },
+ "DECK": {
+  "analysts": 22,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 184.0,
+   "low": 70.0,
+   "mean": 120.40909,
+   "median": 118.5
+  }
+ },
+ "DELL": {
+  "analysts": 25,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 735.0,
+   "low": 480.0,
+   "mean": 585.96,
+   "median": 600.0
+  }
+ },
+ "DG": {
+  "analysts": 29,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 180.0,
+   "low": 90.0,
+   "mean": 142.82759,
+   "median": 140.0
+  }
+ },
+ "DGX": {
+  "analysts": 15,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 265.0,
+   "low": 204.0,
+   "mean": 248.8,
+   "median": 251.0
+  }
+ },
+ "DHI": {
+  "analysts": 14,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 206.0,
+   "low": 125.0,
+   "mean": 155.0,
+   "median": 150.5
+  }
+ },
+ "DHR": {
+  "analysts": 22,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 310.0,
+   "low": 200.0,
+   "mean": 241.0,
+   "median": 243.0
+  }
+ },
+ "DIS": {
+  "analysts": 32,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 144.0,
+   "low": 88.0,
+   "mean": 126.48906,
+   "median": 127.5
+  }
+ },
+ "DLR": {
+  "analysts": 32,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 250.0,
+   "low": 190.0,
+   "mean": 223.4375,
+   "median": 224.5
+  }
+ },
+ "DLTR": {
+  "analysts": 26,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 170.0,
+   "low": 98.0,
+   "mean": 135.38461,
+   "median": 137.5
+  }
+ },
+ "DOC": {
+  "analysts": 19,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 29.0,
+   "low": 17.0,
+   "mean": 22.94737,
+   "median": 22.0
+  }
+ },
+ "DOV": {
+  "analysts": 19,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 288.0,
+   "low": 168.0,
+   "mean": 240.10526,
+   "median": 245.0
+  }
+ },
+ "DOW": {
+  "analysts": 16,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 41.0,
+   "low": 29.0,
+   "mean": 33.625,
+   "median": 32.5
+  }
+ },
+ "DPZ": {
+  "analysts": 27,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 455.0,
+   "low": 260.0,
+   "mean": 373.14816,
+   "median": 372.0
+  }
+ },
+ "DRI": {
+  "analysts": 25,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 276.0,
+   "low": 163.0,
+   "mean": 233.44,
+   "median": 235.0
+  }
+ },
+ "DTE": {
+  "analysts": 14,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 168.0,
+   "low": 134.0,
+   "mean": 152.67857,
+   "median": 156.5
+  }
+ },
+ "DUK": {
+  "analysts": 18,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 147.0,
+   "low": 124.0,
+   "mean": 135.38889,
+   "median": 136.0
+  }
+ },
+ "DVA": {
+  "analysts": 7,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 270.0,
+   "low": 165.0,
+   "mean": 219.85715,
+   "median": 220.0
+  }
+ },
+ "DVN": {
+  "analysts": 27,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 68.0,
+   "low": 44.0,
+   "mean": 60.96296,
+   "median": 62.0
+  }
+ },
+ "DXCM": {
+  "analysts": 26,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 115.0,
+   "low": 79.0,
+   "mean": 96.23077,
+   "median": 95.0
+  }
+ },
+ "EBAY": {
+  "analysts": 27,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 145.0,
+   "low": 71.0,
+   "mean": 116.11111,
+   "median": 118.0
+  }
+ },
+ "ECHO": {
+  "analysts": 9,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 156.0,
+   "low": 103.0,
+   "mean": 128.66667,
+   "median": 130.0
+  }
+ },
+ "ECL": {
+  "analysts": 21,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 360.0,
+   "low": 295.0,
+   "mean": 325.0476,
+   "median": 330.0
+  }
+ },
+ "ED": {
+  "analysts": 16,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 130.0,
+   "low": 94.0,
+   "mean": 109.34375,
+   "median": 110.0
+  }
+ },
+ "EFX": {
+  "analysts": 21,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 245.0,
+   "low": 148.0,
+   "mean": 203.09525,
+   "median": 207.0
+  }
+ },
+ "EG": {
+  "analysts": 16,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 480.0,
+   "low": 368.0,
+   "mean": 409.6875,
+   "median": 399.0
+  }
+ },
+ "EIX": {
+  "analysts": 14,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 86.0,
+   "low": 42.0,
+   "mean": 63.78571,
+   "median": 61.0
+  }
+ },
+ "EL": {
+  "analysts": 28,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 127.0,
+   "low": 70.0,
+   "mean": 107.34,
+   "median": 108.0
+  }
+ },
+ "ELV": {
+  "analysts": 21,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 492.0,
+   "low": 393.0,
+   "mean": 451.4762,
+   "median": 463.0
+  }
+ },
+ "EME": {
+  "analysts": 7,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 1200.0,
+   "low": 885.0,
+   "mean": 1033.2858,
+   "median": 1047.0
+  }
+ },
+ "EMR": {
+  "analysts": 28,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 205.0,
+   "low": 104.0,
+   "mean": 174.21393,
+   "median": 179.5
+  }
+ },
+ "EOG": {
+  "analysts": 28,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 193.0,
+   "low": 138.0,
+   "mean": 164.2143,
+   "median": 160.0
+  }
+ },
+ "EQIX": {
+  "analysts": 31,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 1380.0,
+   "low": 1060.0,
+   "mean": 1234.1936,
+   "median": 1240.0
+  }
+ },
+ "EQT": {
+  "analysts": 26,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 81.0,
+   "low": 52.0,
+   "mean": 67.19231,
+   "median": 67.5
+  }
+ },
+ "ERIE": {
+  "analysts": null,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {}
+ },
+ "ES": {
+  "analysts": 12,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 85.0,
+   "low": 52.0,
+   "mean": 73.33333,
+   "median": 74.5
+  }
+ },
+ "ESS": {
+  "analysts": 25,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 352.0,
+   "low": 239.0,
+   "mean": 304.07,
+   "median": 300.0
+  }
+ },
+ "ETN": {
+  "analysts": 26,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 534.0,
+   "low": 333.0,
+   "mean": 482.895,
+   "median": 490.0
+  }
+ },
+ "ETR": {
+  "analysts": 20,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 137.0,
+   "low": 91.0,
+   "mean": 122.125,
+   "median": 124.5
+  }
+ },
+ "EVRG": {
+  "analysts": 11,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 103.0,
+   "low": 80.0,
+   "mean": 91.18182,
+   "median": 91.0
+  }
+ },
+ "EW": {
+  "analysts": 26,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 110.0,
+   "low": 84.0,
+   "mean": 101.96154,
+   "median": 102.5
+  }
+ },
+ "EXC": {
+  "analysts": 17,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 58.0,
+   "low": 41.0,
+   "mean": 48.52941,
+   "median": 48.0
+  }
+ },
+ "EXE": {
+  "analysts": 27,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 156.0,
+   "low": 93.0,
+   "mean": 123.22222,
+   "median": 123.0
+  }
+ },
+ "EXPD": {
+  "analysts": 15,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 220.0,
+   "low": 100.0,
+   "mean": 180.86667,
+   "median": 180.0
+  }
+ },
+ "EXPE": {
+  "analysts": 35,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 430.0,
+   "low": 235.0,
+   "mean": 336.14285,
+   "median": 330.0
+  }
+ },
+ "EXR": {
+  "analysts": 20,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 178.0,
+   "low": 140.0,
+   "mean": 158.25,
+   "median": 157.5
+  }
+ },
+ "F": {
+  "analysts": 18,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 20.0,
+   "low": 12.8,
+   "mean": 15.75222,
+   "median": 15.0
+  }
+ },
+ "FANG": {
+  "analysts": 29,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 287.0,
+   "low": 205.0,
+   "mean": 234.7931,
+   "median": 233.0
+  }
+ },
+ "FAST": {
+  "analysts": 13,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 59.0,
+   "low": 39.9,
+   "mean": 48.83846,
+   "median": 49.0
+  }
+ },
+ "FCX": {
+  "analysts": 22,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 92.0,
+   "low": 32.0,
+   "mean": 77.90909,
+   "median": 80.5
+  }
+ },
+ "FDS": {
+  "analysts": 16,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 340.0,
+   "low": 212.0,
+   "mean": 279.125,
+   "median": 288.5
+  }
+ },
+ "FDX": {
+  "analysts": 26,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 479.0,
+   "low": 160.0,
+   "mean": 355.49588,
+   "median": 352.5
+  }
+ },
+ "FDXF": {
+  "analysts": 14,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 200.0,
+   "low": 108.0,
+   "mean": 147.57143,
+   "median": 140.5
+  }
+ },
+ "FE": {
+  "analysts": 12,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 56.0,
+   "low": 48.0,
+   "mean": 52.66667,
+   "median": 53.0
+  }
+ },
+ "FERG": {
+  "analysts": 22,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 325.0,
+   "low": 235.0,
+   "mean": 284.5,
+   "median": 288.0
+  }
+ },
+ "FFIV": {
+  "analysts": 10,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 515.0,
+   "low": 300.0,
+   "mean": 436.1,
+   "median": 438.0
+  }
+ },
+ "FICO": {
+  "analysts": 19,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 1750.0,
+   "low": 490.0,
+   "mean": 1113.4722,
+   "median": 1100.0
+  }
+ },
+ "FIS": {
+  "analysts": 24,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 77.0,
+   "low": 37.0,
+   "mean": 48.95833,
+   "median": 48.5
+  }
+ },
+ "FISV": {
+  "analysts": 25,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 106.0,
+   "low": 40.0,
+   "mean": 59.04,
+   "median": 57.0
+  }
+ },
+ "FITB": {
+  "analysts": 21,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 67.0,
+   "low": 55.0,
+   "mean": 61.71429,
+   "median": 62.0
+  }
+ },
+ "FIX": {
+  "analysts": 8,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 2500.0,
+   "low": 1910.0,
+   "mean": 2197.0,
+   "median": 2165.5
+  }
+ },
+ "FLEX": {
+  "analysts": 10,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 180.0,
+   "low": 142.0,
+   "mean": 160.5,
+   "median": 160.0
+  }
+ },
+ "FOX": {
+  "analysts": null,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {}
+ },
+ "FOXA": {
+  "analysts": 18,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 112.0,
+   "low": 52.6,
+   "mean": 76.42222,
+   "median": 77.0
+  }
+ },
+ "FRT": {
+  "analysts": 19,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 149.0,
+   "low": 115.0,
+   "mean": 130.10526,
+   "median": 130.0
+  }
+ },
+ "FSLR": {
+  "analysts": 30,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 402.0,
+   "low": 197.0,
+   "mean": 274.47134,
+   "median": 271.0
+  }
+ },
+ "FTNT": {
+  "analysts": 36,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 220.0,
+   "low": 104.0,
+   "mean": 164.31944,
+   "median": 165.0
+  }
+ },
+ "FTV": {
+  "analysts": 14,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 72.0,
+   "low": 51.0,
+   "mean": 63.07143,
+   "median": 63.0
+  }
+ },
+ "GD": {
+  "analysts": 21,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 465.0,
+   "low": 319.0,
+   "mean": 413.11237,
+   "median": 415.0
+  }
+ },
+ "GDDY": {
+  "analysts": 16,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 170.0,
+   "low": 76.0,
+   "mean": 106.75,
+   "median": 100.0
+  }
+ },
+ "GE": {
+  "analysts": 21,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 450.0,
+   "low": 305.0,
+   "mean": 394.66666,
+   "median": 400.0
+  }
+ },
+ "GEHC": {
+  "analysts": 20,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 96.0,
+   "low": 70.0,
+   "mean": 82.9,
+   "median": 84.0
+  }
+ },
+ "GEN": {
+  "analysts": 9,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 46.0,
+   "low": 25.0,
+   "mean": 32.55556,
+   "median": 32.0
+  }
+ },
+ "GEV": {
+  "analysts": 33,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 1450.0,
+   "low": 940.0,
+   "mean": 1224.8864,
+   "median": 1235.0
+  }
+ },
+ "GILD": {
+  "analysts": 26,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 180.0,
+   "low": 126.0,
+   "mean": 159.38461,
+   "median": 164.0
+  }
+ },
+ "GIS": {
+  "analysts": 18,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 45.0,
+   "low": 30.0,
+   "mean": 37.0,
+   "median": 37.5
+  }
+ },
+ "GL": {
+  "analysts": 11,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 225.0,
+   "low": 166.0,
+   "mean": 192.90909,
+   "median": 192.0
+  }
+ },
+ "GLW": {
+  "analysts": 17,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 238.0,
+   "low": 129.0,
+   "mean": 187.70589,
+   "median": 182.0
+  }
+ },
+ "GM": {
+  "analysts": 23,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 132.0,
+   "low": 75.0,
+   "mean": 104.65217,
+   "median": 105.0
+  }
+ },
+ "GNRC": {
+  "analysts": 18,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 375.0,
+   "low": 215.0,
+   "mean": 287.77777,
+   "median": 284.0
+  }
+ },
+ "GOOG": {
+  "analysts": 14,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 485.0,
+   "low": 340.0,
+   "mean": 420.36,
+   "median": 425.0
+  }
+ },
+ "GOOGL": {
+  "analysts": 54,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 515.0,
+   "low": 340.0,
+   "mean": 429.47406,
+   "median": 430.0
+  }
+ },
+ "GPC": {
+  "analysts": 9,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 170.0,
+   "low": 122.0,
+   "mean": 139.22221,
+   "median": 130.0
+  }
+ },
+ "GPN": {
+  "analysts": 31,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 194.0,
+   "low": 70.0,
+   "mean": 104.93548,
+   "median": 101.0
+  }
+ },
+ "GRMN": {
+  "analysts": 6,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 370.0,
+   "low": 231.0,
+   "mean": 302.0,
+   "median": 296.0
+  }
+ },
+ "GS": {
+  "analysts": 21,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 1250.0,
+   "low": 730.0,
+   "mean": 1069.0952,
+   "median": 1050.0
+  }
+ },
+ "GWW": {
+  "analysts": 14,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 1500.0,
+   "low": 1100.0,
+   "mean": 1331.6428,
+   "median": 1352.5
+  }
+ },
+ "HAL": {
+  "analysts": 25,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 53.0,
+   "low": 29.0,
+   "mean": 43.4,
+   "median": 43.0
+  }
+ },
+ "HAS": {
+  "analysts": 13,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 120.0,
+   "low": 90.0,
+   "mean": 110.61538,
+   "median": 111.0
+  }
+ },
+ "HBAN": {
+  "analysts": 20,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 22.5,
+   "low": 17.0,
+   "mean": 19.165,
+   "median": 19.0
+  }
+ },
+ "HCA": {
+  "analysts": 22,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 579.0,
+   "low": 380.0,
+   "mean": 459.27274,
+   "median": 475.5
+  }
+ },
+ "HD": {
+  "analysts": 32,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 425.0,
+   "low": 310.0,
+   "mean": 379.75,
+   "median": 392.5
+  }
+ },
+ "HIG": {
+  "analysts": 20,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 164.0,
+   "low": 135.0,
+   "mean": 148.0,
+   "median": 146.5
+  }
+ },
+ "HII": {
+  "analysts": 12,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 439.0,
+   "low": 304.0,
+   "mean": 363.0,
+   "median": 357.0
+  }
+ },
+ "HLT": {
+  "analysts": 26,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 394.0,
+   "low": 270.0,
+   "mean": 353.0,
+   "median": 361.5
+  }
+ },
+ "HON": {
+  "analysts": 23,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 303.0,
+   "low": 186.0,
+   "mean": 257.6087,
+   "median": 262.0
+  }
+ },
+ "HONA": {
+  "analysts": 15,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 256.0,
+   "low": 160.0,
+   "mean": 201.86667,
+   "median": 195.0
+  }
+ },
+ "HOOD": {
+  "analysts": 28,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 170.0,
+   "low": 57.0,
+   "mean": 134.68356,
+   "median": 140.0
+  }
+ },
+ "HPE": {
+  "analysts": 21,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 92.0,
+   "low": 52.59,
+   "mean": 72.0281,
+   "median": 70.0
+  }
+ },
+ "HPQ": {
+  "analysts": 17,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 72.0,
+   "low": 19.0,
+   "mean": 29.66471,
+   "median": 28.0
+  }
+ },
+ "HRL": {
+  "analysts": 8,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 30.0,
+   "low": 23.0,
+   "mean": 25.5625,
+   "median": 25.0
+  }
+ },
+ "HSIC": {
+  "analysts": 15,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 110.0,
+   "low": 64.0,
+   "mean": 97.26667,
+   "median": 100.0
+  }
+ },
+ "HST": {
+  "analysts": 20,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 29.0,
+   "low": 21.0,
+   "mean": 25.29033,
+   "median": 25.25
+  }
+ },
+ "HSY": {
+  "analysts": 21,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 250.0,
+   "low": 170.0,
+   "mean": 202.19048,
+   "median": 200.0
+  }
+ },
+ "HUBB": {
+  "analysts": 12,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 630.0,
+   "low": 502.0,
+   "mean": 560.5833,
+   "median": 562.5
+  }
+ },
+ "HUM": {
+  "analysts": 23,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 596.0,
+   "low": 280.0,
+   "mean": 452.86957,
+   "median": 460.0
+  }
+ },
+ "HWM": {
+  "analysts": 20,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 377.0,
+   "low": 255.0,
+   "mean": 329.5,
+   "median": 340.0
+  }
+ },
+ "IBKR": {
+  "analysts": 14,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 121.0,
+   "low": 70.0,
+   "mean": 105.18571,
+   "median": 106.5
+  }
+ },
+ "IBM": {
+  "analysts": 23,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 297.0,
+   "low": 174.0,
+   "mean": 240.56435,
+   "median": 240.0
+  }
+ },
+ "ICE": {
+  "analysts": 15,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 236.0,
+   "low": 159.0,
+   "mean": 186.0,
+   "median": 183.0
+  }
+ },
+ "IDXX": {
+  "analysts": 12,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 805.0,
+   "low": 470.0,
+   "mean": 701.3333,
+   "median": 705.0
+  }
+ },
+ "IEX": {
+  "analysts": 14,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 280.0,
+   "low": 215.0,
+   "mean": 255.92857,
+   "median": 259.5
+  }
+ },
+ "IFF": {
+  "analysts": 17,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 105.0,
+   "low": 76.0,
+   "mean": 96.23529,
+   "median": 96.0
+  }
+ },
+ "ILMN": {
+  "analysts": 20,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 365.0,
+   "low": 113.0,
+   "mean": 233.55,
+   "median": 214.0
+  }
+ },
+ "INCY": {
+  "analysts": 24,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 157.0,
+   "low": 86.0,
+   "mean": 129.125,
+   "median": 129.0
+  }
+ },
+ "INTC": {
+  "analysts": 43,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 200.0,
+   "low": 80.0,
+   "mean": 118.04651,
+   "median": 115.0
+  }
+ },
+ "INTU": {
+  "analysts": 31,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 732.0,
+   "low": 290.0,
+   "mean": 405.6,
+   "median": 400.0
+  }
+ },
+ "INVH": {
+  "analysts": 23,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 41.0,
+   "low": 28.0,
+   "mean": 33.52174,
+   "median": 34.0
+  }
+ },
+ "IP": {
+  "analysts": 11,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 62.0,
+   "low": 35.0,
+   "mean": 46.36364,
+   "median": 46.0
+  }
+ },
+ "IQV": {
+  "analysts": 19,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 345.0,
+   "low": 250.0,
+   "mean": 295.05264,
+   "median": 290.0
+  }
+ },
+ "IR": {
+  "analysts": 13,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 109.0,
+   "low": 82.0,
+   "mean": 94.71154,
+   "median": 93.25
+  }
+ },
+ "IRM": {
+  "analysts": 11,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 155.0,
+   "low": 132.0,
+   "mean": 145.09091,
+   "median": 145.0
+  }
+ },
+ "ISRG": {
+  "analysts": 30,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 685.0,
+   "low": 324.0,
+   "mean": 478.1,
+   "median": 484.0
+  }
+ },
+ "IT": {
+  "analysts": 13,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 229.0,
+   "low": 150.0,
+   "mean": 189.07692,
+   "median": 190.0
+  }
+ },
+ "ITW": {
+  "analysts": 14,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 326.0,
+   "low": 249.0,
+   "mean": 294.57144,
+   "median": 298.5
+  }
+ },
+ "IVZ": {
+  "analysts": 14,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 41.0,
+   "low": 29.5,
+   "mean": 34.60714,
+   "median": 34.5
+  }
+ },
+ "J": {
+  "analysts": 15,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 181.0,
+   "low": 144.0,
+   "mean": 162.46667,
+   "median": 163.0
+  }
+ },
+ "JBHT": {
+  "analysts": 23,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 330.0,
+   "low": 182.0,
+   "mean": 283.13043,
+   "median": 289.0
+  }
+ },
+ "JBL": {
+  "analysts": 9,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 475.0,
+   "low": 365.0,
+   "mean": 425.0,
+   "median": 430.0
+  }
+ },
+ "JCI": {
+  "analysts": 20,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 193.0,
+   "low": 129.0,
+   "mean": 166.9,
+   "median": 170.5
+  }
+ },
+ "JKHY": {
+  "analysts": 18,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 209.0,
+   "low": 158.0,
+   "mean": 189.72221,
+   "median": 194.5
+  }
+ },
+ "JNJ": {
+  "analysts": 22,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 320.0,
+   "low": 190.0,
+   "mean": 279.81818,
+   "median": 283.5
+  }
+ },
+ "JPM": {
+  "analysts": 22,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 420.0,
+   "low": 305.0,
+   "mean": 372.13635,
+   "median": 371.0
+  }
+ },
+ "KDP": {
+  "analysts": 17,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 42.0,
+   "low": 29.0,
+   "mean": 36.20588,
+   "median": 38.0
+  }
+ },
+ "KEY": {
+  "analysts": 20,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 43.0,
+   "low": 22.0,
+   "mean": 25.105,
+   "median": 24.0
+  }
+ },
+ "KEYS": {
+  "analysts": 12,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 487.0,
+   "low": 350.0,
+   "mean": 418.0,
+   "median": 417.5
+  }
+ },
+ "KHC": {
+  "analysts": 18,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 41.0,
+   "low": 19.0,
+   "mean": 25.25,
+   "median": 24.5
+  }
+ },
+ "KIM": {
+  "analysts": 21,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 31.0,
+   "low": 23.0,
+   "mean": 26.5119,
+   "median": 26.0
+  }
+ },
+ "KKR": {
+  "analysts": 21,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 166.0,
+   "low": 97.0,
+   "mean": 124.09667,
+   "median": 120.03
+  }
+ },
+ "KLAC": {
+  "analysts": 26,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 325.0,
+   "low": 175.0,
+   "mean": 232.76923,
+   "median": 228.5
+  }
+ },
+ "KMB": {
+  "analysts": 15,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 162.0,
+   "low": 90.0,
+   "mean": 115.26667,
+   "median": 115.0
+  }
+ },
+ "KMI": {
+  "analysts": 22,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 43.0,
+   "low": 31.0,
+   "mean": 36.09091,
+   "median": 36.0
+  }
+ },
+ "KO": {
+  "analysts": 23,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 104.0,
+   "low": 75.0,
+   "mean": 94.43478,
+   "median": 95.0
+  }
+ },
+ "KR": {
+  "analysts": 22,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 85.0,
+   "low": 57.0,
+   "mean": 68.31818,
+   "median": 68.0
+  }
+ },
+ "KVUE": {
+  "analysts": 12,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 23.0,
+   "low": 18.0,
+   "mean": 19.5,
+   "median": 19.0
+  }
+ },
+ "L": {
+  "analysts": null,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {}
+ },
+ "LDOS": {
+  "analysts": 15,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 225.0,
+   "low": 130.0,
+   "mean": 152.06667,
+   "median": 145.0
+  }
+ },
+ "LEN": {
+  "analysts": 15,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 120.0,
+   "low": 63.0,
+   "mean": 77.86667,
+   "median": 75.0
+  }
+ },
+ "LH": {
+  "analysts": 16,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 385.0,
+   "low": 293.0,
+   "mean": 345.125,
+   "median": 355.0
+  }
+ },
+ "LHX": {
+  "analysts": 17,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 405.0,
+   "low": 260.0,
+   "mean": 325.17648,
+   "median": 325.0
+  }
+ },
+ "LII": {
+  "analysts": 14,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 600.0,
+   "low": 375.0,
+   "mean": 472.64285,
+   "median": 459.5
+  }
+ },
+ "LIN": {
+  "analysts": 26,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 580.0,
+   "low": 400.0,
+   "mean": 543.03845,
+   "median": 550.0
+  }
+ },
+ "LITE": {
+  "analysts": 26,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 1400.0,
+   "low": 820.0,
+   "mean": 1161.9557,
+   "median": 1193.0
+  }
+ },
+ "LLY": {
+  "analysts": 29,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 1600.0,
+   "low": 930.0,
+   "mean": 1330.1442,
+   "median": 1385.0
+  }
+ },
+ "LMT": {
+  "analysts": 21,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 756.0,
+   "low": 503.0,
+   "mean": 625.7619,
+   "median": 620.0
+  }
+ },
+ "LNT": {
+  "analysts": 12,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 83.0,
+   "low": 66.0,
+   "mean": 77.375,
+   "median": 78.0
+  }
+ },
+ "LOW": {
+  "analysts": 33,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 300.0,
+   "low": 190.0,
+   "mean": 252.42424,
+   "median": 255.0
+  }
+ },
+ "LRCX": {
+  "analysts": 31,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 500.0,
+   "low": 290.0,
+   "mean": 375.80646,
+   "median": 385.0
+  }
+ },
+ "LULU": {
+  "analysts": 27,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 255.0,
+   "low": 44.0,
+   "mean": 104.91111,
+   "median": 100.0
+  }
+ },
+ "LUV": {
+  "analysts": 23,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 65.0,
+   "low": 34.0,
+   "mean": 49.22174,
+   "median": 50.0
+  }
+ },
+ "LVS": {
+  "analysts": 19,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 71.5,
+   "low": 47.0,
+   "mean": 58.64737,
+   "median": 60.0
+  }
+ },
+ "LYB": {
+  "analysts": 17,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 88.0,
+   "low": 56.0,
+   "mean": 67.94118,
+   "median": 66.0
+  }
+ },
+ "LYV": {
+  "analysts": 24,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 222.0,
+   "low": 145.0,
+   "mean": 201.95833,
+   "median": 209.0
+  }
+ },
+ "MA": {
+  "analysts": 37,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 740.0,
+   "low": 550.0,
+   "mean": 668.0651,
+   "median": 670.0
+  }
+ },
+ "MAA": {
+  "analysts": 25,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 160.0,
+   "low": 121.0,
+   "mean": 141.4,
+   "median": 142.0
+  }
+ },
+ "MAR": {
+  "analysts": 25,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 425.0,
+   "low": 280.0,
+   "mean": 380.8,
+   "median": 393.0
+  }
+ },
+ "MAS": {
+  "analysts": 19,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 96.0,
+   "low": 68.0,
+   "mean": 79.89474,
+   "median": 79.0
+  }
+ },
+ "MCD": {
+  "analysts": 29,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 390.0,
+   "low": 230.0,
+   "mean": 292.2069,
+   "median": 293.0
+  }
+ },
+ "MCHP": {
+  "analysts": 25,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 135.0,
+   "low": 80.0,
+   "mean": 107.84,
+   "median": 108.0
+  }
+ },
+ "MCK": {
+  "analysts": 12,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 1070.0,
+   "low": 845.0,
+   "mean": 980.6667,
+   "median": 1000.0
+  }
+ },
+ "MCO": {
+  "analysts": 21,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 610.0,
+   "low": 470.0,
+   "mean": 558.7143,
+   "median": 560.0
+  }
+ },
+ "MDLZ": {
+  "analysts": 22,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 77.0,
+   "low": 55.0,
+   "mean": 69.0,
+   "median": 70.0
+  }
+ },
+ "MDT": {
+  "analysts": 25,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 121.0,
+   "low": 85.0,
+   "mean": 104.44,
+   "median": 106.0
+  }
+ },
+ "MET": {
+  "analysts": 16,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 119.0,
+   "low": 84.0,
+   "mean": 107.1875,
+   "median": 109.5
+  }
+ },
+ "META": {
+  "analysts": 58,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 1050.0,
+   "low": 580.0,
+   "mean": 798.9952,
+   "median": 800.0
+  }
+ },
+ "MGM": {
+  "analysts": 19,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 57.0,
+   "low": 37.0,
+   "mean": 48.12105,
+   "median": 48.0
+  }
+ },
+ "MKC": {
+  "analysts": 13,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 65.0,
+   "low": 47.0,
+   "mean": 54.84615,
+   "median": 55.0
+  }
+ },
+ "MLM": {
+  "analysts": 24,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 800.0,
+   "low": 496.0,
+   "mean": 635.1667,
+   "median": 639.5
+  }
+ },
+ "MMM": {
+  "analysts": 18,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 218.0,
+   "low": 120.0,
+   "mean": 186.15,
+   "median": 190.0
+  }
+ },
+ "MNST": {
+  "analysts": 23,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 57.0,
+   "low": 35.0,
+   "mean": 50.02174,
+   "median": 50.0
+  }
+ },
+ "MO": {
+  "analysts": 11,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 82.0,
+   "low": 58.0,
+   "mean": 70.0,
+   "median": 71.0
+  }
+ },
+ "MOS": {
+  "analysts": 18,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 35.0,
+   "low": 17.0,
+   "mean": 26.66111,
+   "median": 26.0
+  }
+ },
+ "MPC": {
+  "analysts": 18,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 519.0,
+   "low": 236.0,
+   "mean": 409.27777,
+   "median": 435.5
+  }
+ },
+ "MPWR": {
+  "analysts": 15,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 2100.0,
+   "low": 1575.0,
+   "mean": 1839.8,
+   "median": 1820.0
+  }
+ },
+ "MRK": {
+  "analysts": 25,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 186.0,
+   "low": 105.0,
+   "mean": 158.08,
+   "median": 163.0
+  }
+ },
+ "MRNA": {
+  "analysts": 18,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 200.0,
+   "low": 45.0,
+   "mean": 122.66667,
+   "median": 125.0
+  }
+ },
+ "MRSH": {
+  "analysts": 21,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 238.0,
+   "low": 179.0,
+   "mean": 203.90475,
+   "median": 200.0
+  }
+ },
+ "MRVL": {
+  "analysts": 44,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 450.0,
+   "low": 210.0,
+   "mean": 337.9938,
+   "median": 350.0
+  }
+ },
+ "MS": {
+  "analysts": 22,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 262.0,
+   "low": 184.0,
+   "mean": 222.13635,
+   "median": 221.0
+  }
+ },
+ "MSCI": {
+  "analysts": 17,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 755.0,
+   "low": 570.0,
+   "mean": 680.7647,
+   "median": 685.0
+  }
+ },
+ "MSFT": {
+  "analysts": 53,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 870.0,
+   "low": 440.0,
+   "mean": 587.6338,
+   "median": 586.0
+  }
+ },
+ "MSI": {
+  "analysts": 11,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 550.0,
+   "low": 476.0,
+   "mean": 526.9091,
+   "median": 530.0
+  }
+ },
+ "MTB": {
+  "analysts": 20,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 301.0,
+   "low": 224.0,
+   "mean": 251.775,
+   "median": 250.0
+  }
+ },
+ "MTD": {
+  "analysts": 13,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 1700.0,
+   "low": 1200.0,
+   "mean": 1508.3077,
+   "median": 1550.0
+  }
+ },
+ "MU": {
+  "analysts": 46,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 3000.0,
+   "low": 361.0,
+   "mean": 1555.1304,
+   "median": 1550.0
+  }
+ },
+ "NCLH": {
+  "analysts": 25,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 32.0,
+   "low": 13.0,
+   "mean": 19.92,
+   "median": 20.0
+  }
+ },
+ "NDAQ": {
+  "analysts": 16,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 132.0,
+   "low": 84.0,
+   "mean": 108.6875,
+   "median": 108.5
+  }
+ },
+ "NDSN": {
+  "analysts": 7,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 375.0,
+   "low": 282.0,
+   "mean": 349.7143,
+   "median": 360.0
+  }
+ },
+ "NEE": {
+  "analysts": 19,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 114.0,
+   "low": 56.0,
+   "mean": 97.05263,
+   "median": 100.0
+  }
+ },
+ "NEM": {
+  "analysts": 21,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 170.0,
+   "low": 67.0,
+   "mean": 137.4762,
+   "median": 140.0
+  }
+ },
+ "NFLX": {
+  "analysts": 45,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 135.0,
+   "low": 57.0,
+   "mean": 92.54889,
+   "median": 90.0
+  }
+ },
+ "NI": {
+  "analysts": 15,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 55.0,
+   "low": 43.0,
+   "mean": 49.13333,
+   "median": 50.0
+  }
+ },
+ "NKE": {
+  "analysts": 36,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 94.0,
+   "low": 19.0,
+   "mean": 38.04167,
+   "median": 34.4
+  }
+ },
+ "NOC": {
+  "analysts": 24,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 815.0,
+   "low": 419.0,
+   "mean": 623.0,
+   "median": 613.5
+  }
+ },
+ "NOW": {
+  "analysts": 46,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 248.0,
+   "low": 72.0,
+   "mean": 146.73174,
+   "median": 150.0
+  }
+ },
+ "NRG": {
+  "analysts": 16,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 270.0,
+   "low": 104.0,
+   "mean": 185.5,
+   "median": 182.0
+  }
+ },
+ "NSC": {
+  "analysts": 18,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 400.0,
+   "low": 297.0,
+   "mean": 356.1111,
+   "median": 354.5
+  }
+ },
+ "NTAP": {
+  "analysts": 16,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 300.0,
+   "low": 170.0,
+   "mean": 211.6875,
+   "median": 197.0
+  }
+ },
+ "NTRS": {
+  "analysts": 14,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 194.0,
+   "low": 158.0,
+   "mean": 181.7143,
+   "median": 184.5
+  }
+ },
+ "NUE": {
+  "analysts": 16,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 310.0,
+   "low": 226.0,
+   "mean": 284.3125,
+   "median": 290.5
+  }
+ },
+ "NVDA": {
+  "analysts": 59,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 515.0,
+   "low": 180.0,
+   "mean": 328.71695,
+   "median": 315.0
+  }
+ },
+ "NVR": {
+  "analysts": 6,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 7400.0,
+   "low": 5058.0,
+   "mean": 6395.3335,
+   "median": 6562.5
+  }
+ },
+ "NWS": {
+  "analysts": null,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {}
+ },
+ "NWSA": {
+  "analysts": 8,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 43.0,
+   "low": 30.3,
+   "mean": 36.1625,
+   "median": 36.5
+  }
+ },
+ "NXPI": {
+  "analysts": 29,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 400.0,
+   "low": 190.0,
+   "mean": 306.72415,
+   "median": 310.0
+  }
+ },
+ "O": {
+  "analysts": 21,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 74.0,
+   "low": 59.0,
+   "mean": 66.05952,
+   "median": 66.0
+  }
+ },
+ "ODFL": {
+  "analysts": 21,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 250.0,
+   "low": 156.0,
+   "mean": 222.38095,
+   "median": 229.0
+  }
+ },
+ "OKE": {
+  "analysts": 20,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 112.0,
+   "low": 89.0,
+   "mean": 100.95,
+   "median": 100.0
+  }
+ },
+ "OMC": {
+  "analysts": 12,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 141.0,
+   "low": 77.0,
+   "mean": 102.0,
+   "median": 100.0
+  }
+ },
+ "ON": {
+  "analysts": 26,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 150.0,
+   "low": 75.0,
+   "mean": 104.46154,
+   "median": 100.0
+  }
+ },
+ "ORCL": {
+  "analysts": 41,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 400.0,
+   "low": 110.0,
+   "mean": 237.97415,
+   "median": 240.0
+  }
+ },
+ "ORLY": {
+  "analysts": 26,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 120.0,
+   "low": 91.0,
+   "mean": 107.34615,
+   "median": 109.0
+  }
+ },
+ "OTIS": {
+  "analysts": 13,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 105.0,
+   "low": 73.0,
+   "mean": 86.53846,
+   "median": 86.0
+  }
+ },
+ "OXY": {
+  "analysts": 25,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 82.0,
+   "low": 55.0,
+   "mean": 68.4,
+   "median": 69.0
+  }
+ },
+ "P": {
+  "analysts": 19,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 185.0,
+   "low": 80.0,
+   "mean": 147.6842,
+   "median": 150.0
+  }
+ },
+ "PANW": {
+  "analysts": 50,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 475.0,
+   "low": 190.0,
+   "mean": 396.92,
+   "median": 412.5
+  }
+ },
+ "PAYX": {
+  "analysts": 14,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 150.0,
+   "low": 96.0,
+   "mean": 113.92857,
+   "median": 111.0
+  }
+ },
+ "PCAR": {
+  "analysts": 16,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 162.0,
+   "low": 107.0,
+   "mean": 137.875,
+   "median": 139.5
+  }
+ },
+ "PCG": {
+  "analysts": 16,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 24.0,
+   "low": 14.0,
+   "mean": 18.75,
+   "median": 18.5
+  }
+ },
+ "PEG": {
+  "analysts": 18,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 96.0,
+   "low": 69.0,
+   "mean": 84.25,
+   "median": 84.0
+  }
+ },
+ "PEP": {
+  "analysts": 22,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 169.0,
+   "low": 124.0,
+   "mean": 143.04546,
+   "median": 143.0
+  }
+ },
+ "PFE": {
+  "analysts": 26,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 36.0,
+   "low": 25.0,
+   "mean": 29.25962,
+   "median": 28.5
+  }
+ },
+ "PFG": {
+  "analysts": 12,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 128.0,
+   "low": 86.0,
+   "mean": 111.41667,
+   "median": 113.5
+  }
+ },
+ "PG": {
+  "analysts": 23,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 186.0,
+   "low": 143.0,
+   "mean": 161.21739,
+   "median": 163.0
+  }
+ },
+ "PGR": {
+  "analysts": 21,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 314.0,
+   "low": 198.0,
+   "mean": 232.80952,
+   "median": 232.0
+  }
+ },
+ "PH": {
+  "analysts": 24,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 1358.0,
+   "low": 680.0,
+   "mean": 1154.9137,
+   "median": 1212.0
+  }
+ },
+ "PHM": {
+  "analysts": 17,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 166.0,
+   "low": 100.0,
+   "mean": 137.58824,
+   "median": 145.0
+  }
+ },
+ "PKG": {
+  "analysts": 10,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 320.0,
+   "low": 167.0,
+   "mean": 258.8,
+   "median": 265.0
+  }
+ },
+ "PLD": {
+  "analysts": 13,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 170.0,
+   "low": 140.0,
+   "mean": 158.23077,
+   "median": 160.0
+  }
+ },
+ "PLTR": {
+  "analysts": 26,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 265.0,
+   "low": 80.0,
+   "mean": 203.35,
+   "median": 215.0
+  }
+ },
+ "PM": {
+  "analysts": 15,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 230.0,
+   "low": 175.0,
+   "mean": 208.13333,
+   "median": 211.0
+  }
+ },
+ "PNC": {
+  "analysts": 21,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 290.0,
+   "low": 245.0,
+   "mean": 270.2857,
+   "median": 275.0
+  }
+ },
+ "PNR": {
+  "analysts": 15,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 94.0,
+   "low": 50.0,
+   "mean": 75.33333,
+   "median": 78.0
+  }
+ },
+ "PNW": {
+  "analysts": 14,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 118.0,
+   "low": 89.0,
+   "mean": 102.92857,
+   "median": 104.0
+  }
+ },
+ "PODD": {
+  "analysts": 23,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 275.0,
+   "low": 143.0,
+   "mean": 170.86957,
+   "median": 165.0
+  }
+ },
+ "PPG": {
+  "analysts": 21,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 138.0,
+   "low": 115.0,
+   "mean": 125.2381,
+   "median": 125.0
+  }
+ },
+ "PPL": {
+  "analysts": 16,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 45.0,
+   "low": 35.0,
+   "mean": 40.125,
+   "median": 40.0
+  }
+ },
+ "PRU": {
+  "analysts": 15,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 131.0,
+   "low": 92.0,
+   "mean": 113.0,
+   "median": 111.0
+  }
+ },
+ "PSA": {
+  "analysts": 18,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 374.0,
+   "low": 285.0,
+   "mean": 335.05557,
+   "median": 339.5
+  }
+ },
+ "PSX": {
+  "analysts": 19,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 340.0,
+   "low": 173.0,
+   "mean": 266.57895,
+   "median": 270.0
+  }
+ },
+ "PTC": {
+  "analysts": 15,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 205.0,
+   "low": 170.0,
+   "mean": 201.0,
+   "median": 205.0
+  }
+ },
+ "PWR": {
+  "analysts": 29,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 945.0,
+   "low": 410.0,
+   "mean": 766.0062,
+   "median": 800.0
+  }
+ },
+ "PYPL": {
+  "analysts": 32,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 80.0,
+   "low": 36.0,
+   "mean": 56.88594,
+   "median": 56.0
+  }
+ },
+ "Q": {
+  "analysts": 8,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 189.0,
+   "low": 150.0,
+   "mean": 174.25,
+   "median": 177.5
+  }
+ },
+ "QCOM": {
+  "analysts": 30,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 400.0,
+   "low": 100.0,
+   "mean": 194.13333,
+   "median": 175.0
+  }
+ },
+ "RCL": {
+  "analysts": 27,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 425.0,
+   "low": 262.0,
+   "mean": 351.25925,
+   "median": 355.0
+  }
+ },
+ "RDDT": {
+  "analysts": 33,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 300.0,
+   "low": 130.0,
+   "mean": 213.70909,
+   "median": 210.0
+  }
+ },
+ "REG": {
+  "analysts": 18,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 102.0,
+   "low": 76.0,
+   "mean": 85.66667,
+   "median": 85.0
+  }
+ },
+ "REGN": {
+  "analysts": 26,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 1030.0,
+   "low": 730.0,
+   "mean": 859.03845,
+   "median": 857.0
+  }
+ },
+ "RF": {
+  "analysts": 21,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 36.0,
+   "low": 27.0,
+   "mean": 31.84048,
+   "median": 32.0
+  }
+ },
+ "RJF": {
+  "analysts": 14,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 209.0,
+   "low": 160.0,
+   "mean": 185.42857,
+   "median": 186.0
+  }
+ },
+ "RL": {
+  "analysts": 17,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 520.0,
+   "low": 250.0,
+   "mean": 446.70587,
+   "median": 455.0
+  }
+ },
+ "RMD": {
+  "analysts": 17,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 320.0,
+   "low": 175.0,
+   "mean": 250.22295,
+   "median": 235.0
+  }
+ },
+ "ROK": {
+  "analysts": 26,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 550.0,
+   "low": 282.0,
+   "mean": 477.1154,
+   "median": 491.5
+  }
+ },
+ "ROL": {
+  "analysts": 17,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 66.0,
+   "low": 27.0,
+   "mean": 42.41176,
+   "median": 43.0
+  }
+ },
+ "ROP": {
+  "analysts": 14,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 550.0,
+   "low": 335.0,
+   "mean": 439.42856,
+   "median": 422.0
+  }
+ },
+ "ROST": {
+  "analysts": 18,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 310.0,
+   "low": 187.0,
+   "mean": 268.6111,
+   "median": 276.0
+  }
+ },
+ "RSG": {
+  "analysts": 24,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 272.0,
+   "low": 208.0,
+   "mean": 244.5,
+   "median": 243.5
+  }
+ },
+ "RTX": {
+  "analysts": 23,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 250.0,
+   "low": 200.0,
+   "mean": 230.13043,
+   "median": 237.0
+  }
+ },
+ "RVTY": {
+  "analysts": 15,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 165.0,
+   "low": 110.0,
+   "mean": 141.53333,
+   "median": 140.0
+  }
+ },
+ "SBAC": {
+  "analysts": 20,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 280.0,
+   "low": 167.0,
+   "mean": 226.2,
+   "median": 224.5
+  }
+ },
+ "SBUX": {
+  "analysts": 30,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 143.0,
+   "low": 82.0,
+   "mean": 111.33333,
+   "median": 111.5
+  }
+ },
+ "SCHW": {
+  "analysts": 21,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 150.0,
+   "low": 95.0,
+   "mean": 123.0,
+   "median": 124.0
+  }
+ },
+ "SHW": {
+  "analysts": 23,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 420.0,
+   "low": 340.0,
+   "mean": 384.65216,
+   "median": 392.0
+  }
+ },
+ "SJM": {
+  "analysts": 16,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 157.0,
+   "low": 120.0,
+   "mean": 142.125,
+   "median": 145.0
+  }
+ },
+ "SKYD": {
+  "analysts": 16,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 16.0,
+   "low": 2.0,
+   "mean": 9.73438,
+   "median": 8.75
+  }
+ },
+ "SLB": {
+  "analysts": 29,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 75.0,
+   "low": 43.0,
+   "mean": 62.44828,
+   "median": 63.0
+  }
+ },
+ "SMCI": {
+  "analysts": 15,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 60.0,
+   "low": 15.0,
+   "mean": 42.26667,
+   "median": 43.0
+  }
+ },
+ "SNA": {
+  "analysts": 9,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 485.0,
+   "low": 343.0,
+   "mean": 414.8889,
+   "median": 415.0
+  }
+ },
+ "SNDK": {
+  "analysts": 24,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 3600.0,
+   "low": 1000.0,
+   "mean": 2173.0,
+   "median": 2150.0
+  }
+ },
+ "SNPS": {
+  "analysts": 25,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 700.0,
+   "low": 414.77,
+   "mean": 570.5712,
+   "median": 580.0
+  }
+ },
+ "SO": {
+  "analysts": 19,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 112.0,
+   "low": 79.0,
+   "mean": 98.13158,
+   "median": 101.0
+  }
+ },
+ "SOLV": {
+  "analysts": 13,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 113.0,
+   "low": 71.0,
+   "mean": 94.30769,
+   "median": 95.0
+  }
+ },
+ "SPG": {
+  "analysts": 19,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 285.0,
+   "low": 205.0,
+   "mean": 232.0,
+   "median": 223.0
+  }
+ },
+ "SPGI": {
+  "analysts": 21,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 553.0,
+   "low": 477.0,
+   "mean": 516.8571,
+   "median": 521.0
+  }
+ },
+ "SRE": {
+  "analysts": 18,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 118.0,
+   "low": 83.0,
+   "mean": 99.75,
+   "median": 99.5
+  }
+ },
+ "STE": {
+  "analysts": 8,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 280.0,
+   "low": 232.0,
+   "mean": 263.125,
+   "median": 269.5
+  }
+ },
+ "STLD": {
+  "analysts": 14,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 310.0,
+   "low": 205.45,
+   "mean": 270.81787,
+   "median": 271.0
+  }
+ },
+ "STT": {
+  "analysts": 15,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 220.0,
+   "low": 150.0,
+   "mean": 199.03333,
+   "median": 200.0
+  }
+ },
+ "STX": {
+  "analysts": 23,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 1600.0,
+   "low": 700.0,
+   "mean": 1144.3478,
+   "median": 1150.0
+  }
+ },
+ "STZ": {
+  "analysts": 23,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 209.0,
+   "low": 99.0,
+   "mean": 151.73914,
+   "median": 150.0
+  }
+ },
+ "SW": {
+  "analysts": 16,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 69.0,
+   "low": 46.0,
+   "mean": 56.71875,
+   "median": 57.0
+  }
+ },
+ "SWK": {
+  "analysts": 11,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 110.0,
+   "low": 93.0,
+   "mean": 101.09091,
+   "median": 100.0
+  }
+ },
+ "SWKS": {
+  "analysts": 17,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 107.0,
+   "low": 61.0,
+   "mean": 75.64706,
+   "median": 70.0
+  }
+ },
+ "SYF": {
+  "analysts": 24,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 104.0,
+   "low": 78.0,
+   "mean": 88.16667,
+   "median": 88.5
+  }
+ },
+ "SYK": {
+  "analysts": 26,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 465.0,
+   "low": 298.0,
+   "mean": 364.23077,
+   "median": 360.0
+  }
+ },
+ "SYY": {
+  "analysts": 12,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 100.0,
+   "low": 78.0,
+   "mean": 90.83333,
+   "median": 90.5
+  }
+ },
+ "T": {
+  "analysts": 23,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 36.0,
+   "low": 20.0,
+   "mean": 28.80435,
+   "median": 29.0
+  }
+ },
+ "TDG": {
+  "analysts": 20,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 1972.0,
+   "low": 1100.0,
+   "mean": 1448.05,
+   "median": 1405.0
+  }
+ },
+ "TDY": {
+  "analysts": 12,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 877.0,
+   "low": 640.0,
+   "mean": 758.0833,
+   "median": 760.0
+  }
+ },
+ "TECH": {
+  "analysts": 10,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 73.0,
+   "low": 50.0,
+   "mean": 70.5,
+   "median": 73.0
+  }
+ },
+ "TEL": {
+  "analysts": 19,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 306.0,
+   "low": 215.0,
+   "mean": 250.73685,
+   "median": 240.0
+  }
+ },
+ "TER": {
+  "analysts": 15,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 550.0,
+   "low": 350.0,
+   "mean": 446.46667,
+   "median": 450.0
+  }
+ },
+ "TFC": {
+  "analysts": 19,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 61.0,
+   "low": 45.0,
+   "mean": 54.03421,
+   "median": 54.0
+  }
+ },
+ "TGT": {
+  "analysts": 34,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 190.0,
+   "low": 128.0,
+   "mean": 163.5,
+   "median": 160.5
+  }
+ },
+ "TJX": {
+  "analysts": 20,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 198.0,
+   "low": 136.0,
+   "mean": 170.8,
+   "median": 175.0
+  }
+ },
+ "TKO": {
+  "analysts": 19,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 250.0,
+   "low": 185.0,
+   "mean": 231.63158,
+   "median": 235.0
+  }
+ },
+ "TMO": {
+  "analysts": 25,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 800.0,
+   "low": 560.0,
+   "mean": 677.24,
+   "median": 685.0
+  }
+ },
+ "TMUS": {
+  "analysts": 24,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 296.0,
+   "low": 169.0,
+   "mean": 241.5,
+   "median": 242.5
+  }
+ },
+ "TPL": {
+  "analysts": 2,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 639.0,
+   "low": 247.0,
+   "mean": 443.0,
+   "median": 443.0
+  }
+ },
+ "TPR": {
+  "analysts": 20,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 232.0,
+   "low": 96.0,
+   "mean": 166.5,
+   "median": 167.0
+  }
+ },
+ "TRGP": {
+  "analysts": 21,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 359.0,
+   "low": 294.0,
+   "mean": 325.7143,
+   "median": 325.0
+  }
+ },
+ "TRMB": {
+  "analysts": 10,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 94.0,
+   "low": 61.0,
+   "mean": 79.4,
+   "median": 80.0
+  }
+ },
+ "TROW": {
+  "analysts": 13,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 120.0,
+   "low": 90.0,
+   "mean": 106.76923,
+   "median": 109.0
+  }
+ },
+ "TRV": {
+  "analysts": 24,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 430.0,
+   "low": 262.0,
+   "mean": 360.54166,
+   "median": 359.5
+  }
+ },
+ "TSCO": {
+  "analysts": 27,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 50.0,
+   "low": 31.0,
+   "mean": 36.44444,
+   "median": 35.0
+  }
+ },
+ "TSLA": {
+  "analysts": 38,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 600.0,
+   "low": 128.11,
+   "mean": 396.56894,
+   "median": 412.5
+  }
+ },
+ "TSN": {
+  "analysts": 12,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 75.0,
+   "low": 56.0,
+   "mean": 63.41667,
+   "median": 64.0
+  }
+ },
+ "TT": {
+  "analysts": 23,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 575.0,
+   "low": 422.0,
+   "mean": 527.6878,
+   "median": 536.0
+  }
+ },
+ "TTWO": {
+  "analysts": 29,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 368.0,
+   "low": 170.0,
+   "mean": 286.4417,
+   "median": 290.0
+  }
+ },
+ "TWLO": {
+  "analysts": 28,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 335.0,
+   "low": 165.0,
+   "mean": 265.7143,
+   "median": 270.0
+  }
+ },
+ "TXN": {
+  "analysts": 31,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 400.0,
+   "low": 225.0,
+   "mean": 324.7097,
+   "median": 340.0
+  }
+ },
+ "TXT": {
+  "analysts": 15,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 115.0,
+   "low": 86.0,
+   "mean": 100.26667,
+   "median": 100.0
+  }
+ },
+ "TYL": {
+  "analysts": 22,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 525.0,
+   "low": 335.0,
+   "mean": 422.5,
+   "median": 427.5
+  }
+ },
+ "UAL": {
+  "analysts": 23,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 203.0,
+   "low": 102.0,
+   "mean": 152.78261,
+   "median": 150.0
+  }
+ },
+ "UBER": {
+  "analysts": 46,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 150.0,
+   "low": 70.0,
+   "mean": 100.85522,
+   "median": 100.5
+  }
+ },
+ "UDR": {
+  "analysts": 21,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 46.0,
+   "low": 38.0,
+   "mean": 41.2619,
+   "median": 41.0
+  }
+ },
+ "UHS": {
+  "analysts": 17,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 290.0,
+   "low": 166.0,
+   "mean": 194.94118,
+   "median": 191.0
+  }
+ },
+ "ULTA": {
+  "analysts": 25,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 731.0,
+   "low": 500.0,
+   "mean": 631.44,
+   "median": 635.0
+  }
+ },
+ "UNH": {
+  "analysts": 25,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 529.0,
+   "low": 380.0,
+   "mean": 480.6,
+   "median": 490.0
+  }
+ },
+ "UNP": {
+  "analysts": 24,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 375.0,
+   "low": 245.0,
+   "mean": 328.16666,
+   "median": 334.0
+  }
+ },
+ "UPS": {
+  "analysts": 26,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 135.0,
+   "low": 76.0,
+   "mean": 114.26923,
+   "median": 116.0
+  }
+ },
+ "URI": {
+  "analysts": 21,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 1610.0,
+   "low": 950.0,
+   "mean": 1265.9524,
+   "median": 1317.0
+  }
+ },
+ "USB": {
+  "analysts": 22,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 76.0,
+   "low": 64.0,
+   "mean": 69.0,
+   "median": 68.0
+  }
+ },
+ "V": {
+  "analysts": 37,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 466.0,
+   "low": 330.0,
+   "mean": 419.6319,
+   "median": 425.0
+  }
+ },
+ "VEEV": {
+  "analysts": 27,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 343.0,
+   "low": 180.0,
+   "mean": 297.03705,
+   "median": 300.0
+  }
+ },
+ "VICI": {
+  "analysts": 24,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 38.0,
+   "low": 26.0,
+   "mean": 31.58333,
+   "median": 31.5
+  }
+ },
+ "VLO": {
+  "analysts": 19,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 496.0,
+   "low": 238.0,
+   "mean": 388.73685,
+   "median": 411.0
+  }
+ },
+ "VLTO": {
+  "analysts": 15,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 133.0,
+   "low": 100.0,
+   "mean": 114.0,
+   "median": 111.0
+  }
+ },
+ "VMC": {
+  "analysts": 23,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 365.0,
+   "low": 238.0,
+   "mean": 312.30435,
+   "median": 320.0
+  }
+ },
+ "VMRK": {
+  "analysts": 19,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 80.0,
+   "low": 66.0,
+   "mean": 73.44211,
+   "median": 73.0
+  }
+ },
+ "VRSK": {
+  "analysts": 17,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 260.0,
+   "low": 195.0,
+   "mean": 230.94118,
+   "median": 230.0
+  }
+ },
+ "VRSN": {
+  "analysts": 5,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 355.0,
+   "low": 285.0,
+   "mean": 324.4,
+   "median": 325.0
+  }
+ },
+ "VRT": {
+  "analysts": 28,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 427.0,
+   "low": 236.0,
+   "mean": 337.42856,
+   "median": 340.0
+  }
+ },
+ "VRTX": {
+  "analysts": 28,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 672.0,
+   "low": 350.0,
+   "mean": 571.6071,
+   "median": 578.0
+  }
+ },
+ "VST": {
+  "analysts": 20,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 305.0,
+   "low": 106.0,
+   "mean": 210.25,
+   "median": 211.0
+  }
+ },
+ "VTR": {
+  "analysts": 22,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 113.0,
+   "low": 90.0,
+   "mean": 101.81818,
+   "median": 102.0
+  }
+ },
+ "VTRS": {
+  "analysts": 10,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 26.0,
+   "low": 13.0,
+   "mean": 19.7,
+   "median": 20.0
+  }
+ },
+ "VYLR": {
+  "analysts": 4,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 85.0,
+   "low": 13.65291,
+   "mean": 50.66323,
+   "median": 52.0
+  }
+ },
+ "VZ": {
+  "analysts": 22,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 62.0,
+   "low": 44.0,
+   "mean": 51.24091,
+   "median": 51.0
+  }
+ },
+ "WAB": {
+  "analysts": 12,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 355.0,
+   "low": 292.0,
+   "mean": 330.0,
+   "median": 334.0
+  }
+ },
+ "WAT": {
+  "analysts": 23,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 530.0,
+   "low": 349.0,
+   "mean": 458.21738,
+   "median": 465.0
+  }
+ },
+ "WDAY": {
+  "analysts": 38,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 275.0,
+   "low": 92.0,
+   "mean": 207.99658,
+   "median": 215.0
+  }
+ },
+ "WDC": {
+  "analysts": 24,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 1050.0,
+   "low": 420.0,
+   "mean": 670.7917,
+   "median": 650.0
+  }
+ },
+ "WEC": {
+  "analysts": 17,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 135.0,
+   "low": 108.5,
+   "mean": 120.26471,
+   "median": 120.0
+  }
+ },
+ "WELL": {
+  "analysts": 22,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 292.0,
+   "low": 219.0,
+   "mean": 262.04544,
+   "median": 262.5
+  }
+ },
+ "WFC": {
+  "analysts": 24,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 115.0,
+   "low": 90.0,
+   "mean": 98.72917,
+   "median": 97.0
+  }
+ },
+ "WM": {
+  "analysts": 25,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 277.0,
+   "low": 220.0,
+   "mean": 255.56,
+   "median": 260.0
+  }
+ },
+ "WMB": {
+  "analysts": 24,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 103.0,
+   "low": 69.0,
+   "mean": 85.45833,
+   "median": 85.0
+  }
+ },
+ "WMT": {
+  "analysts": 40,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 155.0,
+   "low": 81.0,
+   "mean": 126.775,
+   "median": 127.0
+  }
+ },
+ "WRB": {
+  "analysts": 17,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 83.0,
+   "low": 51.0,
+   "mean": 69.11765,
+   "median": 70.0
+  }
+ },
+ "WSM": {
+  "analysts": 20,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 280.0,
+   "low": 151.0,
+   "mean": 246.35,
+   "median": 253.5
+  }
+ },
+ "WST": {
+  "analysts": 16,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 459.0,
+   "low": 340.0,
+   "mean": 412.25,
+   "median": 410.0
+  }
+ },
+ "WTW": {
+  "analysts": 19,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 455.0,
+   "low": 310.0,
+   "mean": 374.0,
+   "median": 378.0
+  }
+ },
+ "WY": {
+  "analysts": 11,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 38.0,
+   "low": 21.0,
+   "mean": 29.72727,
+   "median": 30.0
+  }
+ },
+ "WYNN": {
+  "analysts": 20,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 144.0,
+   "low": 116.0,
+   "mean": 130.955,
+   "median": 131.5
+  }
+ },
+ "XEL": {
+  "analysts": 18,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 101.0,
+   "low": 74.0,
+   "mean": 90.61111,
+   "median": 92.0
+  }
+ },
+ "XOM": {
+  "analysts": 22,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 200.0,
+   "low": 142.0,
+   "mean": 173.63635,
+   "median": 177.0
+  }
+ },
+ "XYL": {
+  "analysts": 16,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 180.0,
+   "low": 112.0,
+   "mean": 151.3125,
+   "median": 158.5
+  }
+ },
+ "XYZ": {
+  "analysts": 42,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 125.0,
+   "low": 75.0,
+   "mean": 98.38738,
+   "median": 99.0
+  }
+ },
+ "YUM": {
+  "analysts": 22,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 200.0,
+   "low": 147.0,
+   "mean": 171.06364,
+   "median": 174.5
+  }
+ },
+ "ZBH": {
+  "analysts": 22,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 130.0,
+   "low": 93.0,
+   "mean": 106.81818,
+   "median": 105.0
+  }
+ },
+ "ZBRA": {
+  "analysts": 15,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 455.0,
+   "low": 350.0,
+   "mean": 413.85266,
+   "median": 420.0
+  }
+ },
+ "ZTS": {
+  "analysts": 14,
+  "currency": "USD",
+  "saved": "2026-10-11",
+  "targets": {
+   "high": 155.0,
+   "low": 80.0,
+   "mean": 96.0,
+   "median": 89.5
+  }
+ }
+}
