@@ -881,6 +881,8 @@ def _fetch_option_chain(ticker: str, expiry: pd.Timestamp) -> tuple[pd.DataFrame
             "expiry": expiry, "type": kind, "strike": frame["strike"].astype(float),
             "oi": pd.to_numeric(frame["openInterest"], errors="coerce").fillna(0.0),
             "iv": pd.to_numeric(frame["impliedVolatility"], errors="coerce"),
+            "bid": pd.to_numeric(frame.get("bid"), errors="coerce"),
+            "ask": pd.to_numeric(frame.get("ask"), errors="coerce"),
         }))
     quote = chain.underlying if isinstance(chain.underlying, dict) else {}
     stamp = quote.get("regularMarketTime")
@@ -915,6 +917,37 @@ def load_options(ticker: str, expiries: list[pd.Timestamp]) -> tuple[pd.DataFram
         return chain, info, (f"Fetch failed for {ticker} options; showing the chain fetched "
                              f"{info['quote_time'].tz_convert(SGT):%d %b %Y %H:%M} SGT.")
     return pd.DataFrame(), {}, f"Fetch failed for {ticker} options; no earlier copy is available."
+
+
+# Analyst price targets: Yahoo's consensus (mean, median, low, high) and analyst count, one `info` call per stock, on
+# demand. Yahoo gives no date per analyst, so some targets inside the consensus may be months old.
+_LAST_GOOD_TARGETS: dict[str, dict] = {}
+TARGET_FIELDS = {"mean": "targetMeanPrice", "median": "targetMedianPrice", "low": "targetLowPrice",
+                 "high": "targetHighPrice"}
+
+
+@st.cache_data(ttl=6 * 3600)
+def _fetch_targets(ticker: str) -> dict:
+    """{mean, median, low, high} (only the positive ones), analysts, currency; raises on a failed fetch."""
+    info = yf.Ticker(ticker).info or {}
+    targets = {k: float(info[f]) for k, f in TARGET_FIELDS.items() if isinstance(info.get(f), (int, float))
+               and info[f] > 0}
+    return {"targets": targets, "analysts": info.get("numberOfAnalystOpinions"), "currency": info.get("currency")}
+
+
+def load_price_targets(ticker: str) -> tuple[dict, str | None]:
+    """Analyst targets for `ticker` and a notice; never raises. "targets" is empty when Yahoo lists none (ETFs,
+    indices, uncovered stocks). Falls back to the last good copy with a notice (DESIGN.md 5.4)."""
+    try:
+        out = _fetch_targets(ticker)
+        _LAST_GOOD_TARGETS[ticker] = out
+        return out, None
+    except Exception as exc:
+        log.warning("Analyst target fetch failed for %s: %s", ticker, exc)
+    if ticker in _LAST_GOOD_TARGETS:
+        return _LAST_GOOD_TARGETS[ticker], f"Fetch failed for {ticker} analyst targets; showing an earlier copy."
+    return {"targets": {}, "analysts": None, "currency": None}, \
+        f"Fetch failed for {ticker} analyst targets; the distribution is shown without them."
 
 
 # ---------- Shiller CAPE data: saved by hand ----------

@@ -310,3 +310,29 @@ def summarise_options(ticker: str, scope: str, calls: float, puts: float, top_ca
         text += f" and changes sign at {fmt_num(flip, 2, unit)}." if flip is not None else \
             " and does not change sign within the range shown."
     return ReturnsSummary({"put_call": ratio}, asof, (today - asof).days > MAX_AGE_DAYS["D"], text)
+
+
+def summarise_target_prob(ticker: str, expiry: pd.Timestamp, days: int, spot: float, unit: str, asof: pd.Timestamp,
+                          q25: float, q75: float, *, target: tuple[str, float, float] | None = None,
+                          analysts: int | None = None, today: pd.Timestamp | None = None) -> ReturnsSummary:
+    """What the option prices of one expiry imply: the risk-neutral probability of ending at or above the headline
+    analyst target (`target` = (name, price, probability)), and the middle half of the implied range. Describes
+    market pricing only; the word "risk-neutral" is always in the sentence (DESIGN.md 8; 14, "Analyst target
+    probability"). `returns` holds {"probability": p} (NaN without a target)."""
+    today = today or pd.Timestamp.today().normalize()
+    when = f"Options expiring {expiry:%d %b %Y} ({days:,} days)"
+    span = f"{fmt_num(q25, 2)}–{fmt_num(q75, 2, unit)}"
+    prob = float("nan")
+    if target is not None:
+        name, price, prob = target
+        gap = (price / spot - 1) * 100
+        where = "at the last price" if round(abs(gap), 1) == 0 else \
+            f"{fmt_num(abs(gap), 1, '%')} {'above' if gap > 0 else 'below'} the last price"
+        who = f"; {analysts:,} analysts" if analysts else ""
+        text = (f"{when} price a {fmt_num(prob * 100, 0, '%')} risk-neutral probability that {ticker} ends at or "
+                f"above its {name} analyst target of {fmt_num(price, 2, unit)} ({where}{who}). The middle half of "
+                f"the risk-neutral range at expiry is {span}.")
+    else:
+        text = (f"{when} put the middle half of {ticker}'s risk-neutral range at expiry at {span}, against a last "
+                f"price of {fmt_num(spot, 2, unit)}.")
+    return ReturnsSummary({"probability": prob}, asof, (today - asof).days > MAX_AGE_DAYS["D"], text)

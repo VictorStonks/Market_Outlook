@@ -1,7 +1,8 @@
-"""Listed options: open interest by strike, max pain and dealer gamma exposure (DESIGN.md 14, "Options open interest").
+"""Listed options: open interest by strike, max pain and dealer gamma exposure (DESIGN.md 14, "Options open interest"),
+and the risk-neutral distribution behind the analyst target probability (DESIGN.md 14, "Analyst target probability").
 
 Pure module (no Streamlit), so it is unit-testable like `cape.py`. Input is one tidy chain frame with a row per
-contract: expiry (Timestamp), type ("call" / "put"), strike, oi (contracts), iv (implied volatility, decimal).
+contract: expiry (Timestamp), type ("call" / "put"), strike, oi (contracts), iv (implied volatility, decimal), bid, ask.
 
 - Max pain: the settlement price, among the expiry's strikes, at which the options outstanding would pay their holders
   the least in total: sum over calls of OI x max(P - K, 0) plus sum over puts of OI x max(K - P, 0), x contract size.
@@ -127,3 +128,165 @@ def strike_window(spot: float, history: pd.Series) -> tuple[float, float]:
     if not history.empty:
         lo, hi = min(lo, float(history.min())), max(hi, float(history.max()))
     return lo, hi
+
+
+# ---------- Risk-neutral distribution at one expiry (DESIGN.md 14, "Analyst target probability") ----------
+# Black-76 on the forward, so dividends never need to be known: the forward comes from put-call parity. Implied vol is
+# solved from each out-of-the-money option's bid/ask mid (Yahoo's own IV column is unreliable on long-dated options),
+# fitted with a quadratic smile in log-moneyness, and the probability of ending above a price K is minus the slope of
+# the undiscounted call price in K (Breeden-Litzenberger), which includes the smile's skew.
+
+TARGET_HORIZON_DAYS = 365      # Yahoo analyst price targets are taken to be 12-month targets
+MAX_REL_SPREAD = 0.5           # a quote whose (ask - bid) / mid is above this is too wide to price from
+WIDE_SPREAD = 0.2              # median relative spread above which the footer calls the quotes wide
+MIN_QUOTES_SIDE = 3            # usable out-of-the-money quotes needed below and above the forward
+PARITY_STRIKES = 5             # strikes nearest the spot used for the put-call parity forward
+CONE_QUANTILES = (0.05, 0.25, 0.5, 0.75, 0.95)
+_erf = np.vectorize(math.erf, otypes=[float])
+
+
+def _ncdf(x) -> np.ndarray:
+    return 0.5 * (1 + _erf(np.asarray(x, dtype=float) / math.sqrt(2)))
+
+
+def _npdf(x) -> np.ndarray:
+    return np.exp(-0.5 * np.asarray(x, dtype=float) ** 2) / math.sqrt(2 * math.pi)
+
+
+def nearest_expiry(expiries: list[pd.Timestamp], today, days: int = TARGET_HORIZON_DAYS) -> pd.Timestamp | None:
+    """The listed expiry closest to `days` calendar days after `today` (ties: the earlier one)."""
+    return min(expiries, key=lambda e: (abs((e.date() - today).days - days), e)) if expiries else None
+
+
+def black_price(fwd: float, strike: np.ndarray, years: float, vol: np.ndarray, is_call: np.ndarray) -> np.ndarray:
+    """Undiscounted Black-76 price of calls (is_call) or puts on the forward."""
+    vt = np.asarray(vol, dtype=float) * math.sqrt(years)
+    d1 = (np.log(fwd / strike) + 0.5 * vt ** 2) / vt
+    call = fwd * _ncdf(d1) - strike * _ncdf(d1 - vt)
+    return np.where(is_call, call, call - fwd + strike)
+
+
+def black_iv(price: np.ndarray, fwd: float, strike: np.ndarray, years: float, is_call: np.ndarray) -> np.ndarray:
+    """Implied volatility by bisection on [IV_MIN, IV_MAX]; NaN where the price is outside the no-arbitrage bounds."""
+    price, strike = np.asarray(price, dtype=float), np.asarray(strike, dtype=float)
+    intrinsic = np.where(is_call, np.maximum(fwd - strike, 0), np.maximum(strike - fwd, 0))
+    ok = (price > intrinsic) & (price < np.where(is_call, fwd, strike))
+    lo, hi = np.full(price.shape, IV_MIN), np.full(price.shape, IV_MAX)
+    for _ in range(60):
+        mid = (lo + hi) / 2
+        high = black_price(fwd, strike, years, mid, is_call) > price
+        hi, lo = np.where(high, mid, hi), np.where(high, lo, mid)
+    iv = (lo + hi) / 2
+    return np.where(ok & (iv > IV_MIN * 1.01) & (iv < IV_MAX * 0.99), iv, np.nan)
+
+
+def _two_sided(frame: pd.DataFrame) -> pd.DataFrame:
+    q = frame[(frame["bid"] > 0) & (frame["ask"] > frame["bid"])].copy()
+    q["mid"] = (q["bid"] + q["ask"]) / 2
+    q["spread"] = (q["ask"] - q["bid"]) / q["mid"]
+    return q
+
+
+def parity_forward(chain: pd.DataFrame, spot: float, discount: float) -> float | None:
+    """Median over the PARITY_STRIKES strikes nearest the spot of K + (call mid − put mid) / discount, using strikes with
+    a two-sided call and a two-sided put quote; None when there is none."""
+    both = _two_sided(chain).pivot_table(index="strike", columns="type", values="mid", aggfunc="first")
+    if not {"call", "put"} <= set(both.columns):
+        return None
+    both = both[["call", "put"]].dropna()
+    if both.empty:
+        return None
+    near = both.iloc[np.argsort(np.abs(both.index.to_numpy(dtype=float) - spot))[:PARITY_STRIKES]]
+    return float(np.median(near.index.to_numpy(dtype=float) + (near["call"] - near["put"]).to_numpy() / discount))
+
+
+def smile_vol(smile: np.ndarray, x_range: tuple[float, float], x: np.ndarray) -> np.ndarray:
+    """Fitted IV at log-moneyness `x`: the quadratic inside the strikes priced, continued along its edge slope beyond
+    them (smooth, so the distribution has no false lump at the last strike), floored at IV_MIN."""
+    xc = np.clip(x, *x_range)
+    return np.maximum(np.polyval(smile, xc) + np.polyval(np.polyder(smile), xc) * (x - xc), IV_MIN)
+
+
+def _close(day: pd.Timestamp) -> pd.Timestamp:
+    """16:00 New York on `day`."""
+    return pd.Timestamp(day.date()).tz_localize("America/New_York") + pd.Timedelta(hours=16)
+
+
+@dataclass(frozen=True)
+class Implied:
+    expiry: pd.Timestamp
+    years: float                   # from now to 16:00 New York on the expiry date
+    spot: float
+    forward: float
+    parity: bool                   # forward from put-call parity (else the spot grown at the rate, no dividends)
+    quotes: pd.DataFrame           # quotes priced: strike, type, bid, ask, mid, spread, iv, fit_iv
+    smile: np.ndarray              # quadratic coefficients of IV in ln(K / forward), highest power first
+    strike_range: tuple[float, float]   # lowest and highest strike priced; the smile is extrapolated beyond them
+    grid: np.ndarray               # prices at expiry, ascending
+    survival: np.ndarray           # risk-neutral P(price at expiry >= grid)
+    smoothed: float                # largest correction made to keep `survival` non-increasing (0 when none)
+
+    def prob_above(self, price: float) -> float:
+        return float(np.interp(price, self.grid, self.survival))
+
+    def quantile(self, q: float) -> float:
+        return float(np.interp(q, 1 - self.survival, self.grid))
+
+    def extrapolated(self, price: float) -> bool:
+        return not self.strike_range[0] <= price <= self.strike_range[1]
+
+    def cone(self, start: pd.Timestamp, qs: tuple[float, ...] = CONE_QUANTILES) -> pd.DataFrame:
+        """Quantiles of the price on each business day from `start` (today, at the spot) to the expiry. Only the
+        expiry end comes from option prices; in between, the expiry's log-return quantiles are scaled by the square
+        root of the fraction of time elapsed and centred on the forward grown smoothly from the spot."""
+        dates = pd.DatetimeIndex([start]).append(pd.bdate_range(start + pd.Timedelta(days=1), self.expiry))
+        left = np.array([self.years] + [years_to_expiry(self.expiry, _close(d)) for d in dates[1:]])
+        tau = np.clip(1 - left / self.years, 0, 1)
+        tau[-1] = 1.0
+        centre = self.spot * (self.forward / self.spot) ** tau
+        return pd.DataFrame({q: centre * (self.quantile(q) / self.forward) ** np.sqrt(tau) for q in qs}, index=dates)
+
+
+def implied_distribution(chain: pd.DataFrame, spot: float, now: pd.Timestamp,
+                         rate: float) -> tuple[Implied | None, str | None]:
+    """Risk-neutral distribution of the price at one expiry from the chain's bid/ask quotes (section comment above).
+    `chain` holds one expiry with columns expiry, type, strike, bid, ask; `rate` is a decimal. Returns (None, reason)
+    when the quotes cannot support a distribution."""
+    expiry = chain["expiry"].iloc[0]
+    years = years_to_expiry(expiry, now)
+    discount = math.exp(-rate * years)
+    fwd = parity_forward(chain, spot, discount)
+    parity = fwd is not None and fwd > 0
+    if not parity:
+        fwd = spot / discount
+    q = _two_sided(chain)
+    q = q[((q["type"] == "put") & (q["strike"] < fwd)) | ((q["type"] == "call") & (q["strike"] >= fwd))]
+    q = q[q["spread"] <= MAX_REL_SPREAD].sort_values("strike")
+    q = q.assign(iv=black_iv(q["mid"].to_numpy(dtype=float) / discount, fwd, q["strike"].to_numpy(dtype=float),
+                             years, (q["type"] == "call").to_numpy())).dropna(subset=["iv"])
+    below, above = int((q["strike"] < fwd).sum()), int((q["strike"] >= fwd).sum())
+    if below < MIN_QUOTES_SIDE or above < MIN_QUOTES_SIDE:
+        return None, (f"{below} strikes below and {above} above the forward price have a usable two-sided quote "
+                      f"(spread under {MAX_REL_SPREAD:.0%} of the mid); {MIN_QUOTES_SIDE} are needed on each side")
+
+    k = q["strike"].to_numpy(dtype=float)
+    x = np.log(k / fwd)
+    vt = q["iv"].to_numpy() * math.sqrt(years)
+    vega = _npdf((-x + 0.5 * vt ** 2) / vt)          # Black vega up to a constant: weights the fit to liquid strikes
+    smile = np.polyfit(x, q["iv"].to_numpy(), 2, w=np.sqrt(vega / vega.max()))
+    x_lo, x_hi = float(x.min()), float(x.max())
+    q = q.assign(fit_iv=np.maximum(np.polyval(smile, x), IV_MIN))
+
+    vol_at = lambda x: smile_vol(smile, (x_lo, x_hi), x)  # noqa: E731
+    atm = float(vol_at(np.array([0.0]))[0]) * math.sqrt(years)
+    grid = fwd * np.exp(np.linspace(-6 * atm, 6 * atm, 1201))
+    g = np.log(grid / fwd)
+    vol = vol_at(g)
+    slope = np.where(vol > IV_MIN, np.polyval(np.polyder(smile), np.clip(g, x_lo, x_hi)), 0.0)   # d vol / d ln K
+    gt = vol * math.sqrt(years)
+    d1 = (-g + 0.5 * gt ** 2) / gt
+    # P(S_T > K) = -dC/dK with C = Black(F, K, vol(K)): N(d2) - F phi(d1) sqrt(T) dvol/dK, and dvol/dK = slope / K
+    raw = np.clip(_ncdf(d1 - gt) - fwd * _npdf(d1) * math.sqrt(years) * slope / grid, 0, 1)
+    survival = np.minimum.accumulate(raw)
+    return Implied(expiry, years, spot, float(fwd), parity, q.reset_index(drop=True), smile,
+                   (float(k.min()), float(k.max())), grid, survival, float(np.max(raw - survival))), None

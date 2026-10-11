@@ -145,6 +145,28 @@ st.markdown(
     "observation. The panel describes positioning; it does not say where the price will go."
 )
 
+st.subheader("Analyst targets vs options-implied range, Equities page", anchor=False)
+st.markdown(
+    "Source: Yahoo Finance analyst targets (consensus mean, median, low and high, with no date per analyst) and option "
+    "quotes via yfinance, fetched when the panel opens and cached (targets 6 hours, quotes 1 hour). The default "
+    "expiry is the listed one closest to 12 months, the horizon of a price target.\n"
+    "- **Forward.** Put-call parity on the five strikes nearest the price (median of strike + (call mid − put mid) / "
+    "discount factor), which includes expected dividends. Discounting uses the FRED Treasury yield closest to the "
+    "expiry's tenor (DGS3MO, DGS6MO, DGS1, DGS2, DGS3).\n"
+    "- **Smile.** Black-76 implied volatility from the bid/ask mid of out-of-the-money options (quotes with no bid or "
+    "a spread above 50% of the mid are dropped), fitted with a quadratic in log(strike / forward) weighted towards "
+    "the money, and continued along its edge slope beyond the strikes quoted. At least 3 usable quotes are needed "
+    "on each side of the forward.\n"
+    "- **Probability.** P(price at expiry ≥ K) = −∂C/∂K of the undiscounted call price on the fitted smile "
+    "(Breeden-Litzenberger), so it includes the skew. Checked against a finite-difference derivative of call prices, "
+    "and the distribution's mean against the parity forward.\n"
+    "- **Fan.** Percentiles (5, 25, 50, 75, 95) at expiry from the distribution; earlier dates scale the expiry's "
+    "log-return percentiles by the square root of time. Only the expiry end comes from option prices.\n"
+    "- **Reading it.** Risk-neutral probabilities include risk premia, so they usually understate the real-world "
+    "chance of rises and overstate falls. The probability is for the price on the expiry date, not for touching "
+    "the target earlier. It describes option pricing; it is not a forecast."
+)
+
 st.subheader("Stock universe and added tickers, Equities page", anchor=False)
 st.markdown(
     "The default universe is today's S&P 500 constituents. Any other stock on Yahoo Finance can be added by typing "

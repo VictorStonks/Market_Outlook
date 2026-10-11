@@ -1,4 +1,4 @@
-"""Equities: stock price, normalised price, sector return, country return, forward P/E, forward P/E comparison, forward P/E screen, rolling correlation and options open interest panels (yfinance) (DESIGN.md sections 4 and 11 step 9)."""
+"""Equities: stock price, normalised price, sector return, country return, forward P/E, forward P/E comparison, forward P/E screen, rolling correlation, options open interest and analyst target probability panels (yfinance) (DESIGN.md sections 4 and 11 step 9)."""
 import streamlit as st
 
 import panels
@@ -24,4 +24,4 @@ with left:
     panels.render_correlation_panel(lookback_years)
 with right:
     panels.render_corr_matrix_panel()
-panels.render_options_panel()  # open interest by strike beside the price, max pain and dealer gamma (GEX)
+panels.render_options_row()  # open interest (max pain, dealer gamma), then analyst targets vs the implied range

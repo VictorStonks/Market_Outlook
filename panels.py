@@ -21,7 +21,7 @@ import sectors
 import theme
 import valuation
 from takeaways import (MAX_AGE_DAYS, ReturnsSummary, Summary, TakeawaySpec, summarise, summarise_cape_fit,
-                       summarise_corr_matrix, summarise_options,
+                       summarise_corr_matrix, summarise_options, summarise_target_prob,
                        summarise_country_returns,
                        summarise_pe_comparison, summarise_pe_screen, summarise_returns, summarise_sector_returns,
                        summarise_sector_table)
@@ -476,13 +476,14 @@ def _opt_expiry_label(e: pd.Timestamp, today: dt.date) -> str:
     return f"{e:%d %b %Y} · {'today' if days == 0 else f'{days} day' + ('s' if days != 1 else '')}"
 
 
-def _opt_rate(notes: list[str]) -> float:
-    """Risk-free rate (decimal) for the gamma calculation: latest FRED 3-month T-bill yield, else 0 with a note."""
-    rate, notice = data.load_series(OPT_RATE, 1)
+def _opt_rate(notes: list[str], series: str = OPT_RATE) -> float:
+    """Risk-free rate (decimal): latest FRED Treasury yield `series` (default the 3-month bill, used for gamma), else
+    0 with a note."""
+    rate, notice = data.load_series(series, 1)
     _warn_all([notice] if notice else [])
     rate = rate.dropna()
     if rate.empty:
-        notes.append(f"FRED {OPT_RATE} unavailable: gamma uses a 0% risk-free rate.")
+        notes.append(f"FRED {series} unavailable: a 0% risk-free rate is used.")
         return 0.0
     return float(rate.iloc[-1]) / 100
 
@@ -503,13 +504,23 @@ def _opt_raw(oi: pd.DataFrame, chain: pd.DataFrame, single: bool, gex: options.G
 
 
 @st.fragment
-def render_options_panel() -> None:
+def render_options_row() -> None:
+    """Options open interest, then the analyst target probability below it. One fragment, so the target panel follows
+    the stock chosen in the open interest panel until the user picks its own, as the stock price pair does."""
+    _, prices, ticker_of, added = _stock_options("close", [("opt_sel", False), ("tp_sel", False)])
+    ticker = _options_oi_panel(prices, ticker_of)
+    _target_prob_panel(prices, ticker_of, ticker)
+    if added:  # a new ticker: rerun the page so every other stock box offers it too
+        st.rerun(scope="app")
+
+
+def _options_oi_panel(prices: pd.DataFrame, ticker_of: dict[str, str]) -> str | None:
     """Open interest by strike for one stock beside its price, on one shared price axis, with max pain and, behind a
-    toggle, dealer gamma exposure under the SqueezeMetrics convention (DESIGN.md 14, "Options open interest")."""
+    toggle, dealer gamma exposure under the SqueezeMetrics convention (DESIGN.md 14, "Options open interest").
+    Returns the chosen ticker."""
     title = "Options open interest"
     with st.container(border=True):
         head = st.container()  # filled after the controls so the takeaway can use the loaded data
-        _, prices, ticker_of, added = _stock_options("close", [("opt_sel", False)])
         col_s, col_e = st.columns(2)
         with col_s:
             ticker = _pe_select("opt_sel", ticker_of, default=OPT_DEFAULT)
@@ -542,11 +553,12 @@ def render_options_panel() -> None:
                              help="Max pain needs a single expiry; gamma flip needs the GEX toggle.") \
                 if line_options else []
 
-        def empty(message: str, notes: tuple[str, ...] = ()) -> None:
+        def empty(message: str, notes: tuple[str, ...] = ()) -> str | None:
             with head:
                 theme.panel_header(title, "Contracts by strike · daily snapshot")
             st.info(message)
             theme.panel_footer(STOCK_SOURCE, "Daily snapshot", None, caveat=" ".join([*notes, OPT_CAVEAT]))
+            return ticker
 
         if not ticker:
             return empty("No stock prices available." if not ticker_of else "Select a stock.")
@@ -623,8 +635,216 @@ def render_options_panel() -> None:
             st.dataframe(raw, hide_index=True, width="stretch", column_config={
                 c: st.column_config.NumberColumn(format="%.2f" if "Strike" in c or "IV" in c else "localized")
                 for c in raw.columns})
-    if added:  # a new ticker: rerun the page so every other stock box offers it too
-        st.rerun(scope="app")
+    return ticker
+
+
+# ---------- Equities: analyst target probability (options-implied, risk-neutral) ----------
+
+TP_HISTORY_MONTHS = 12                 # daily closes shown before the fan, about as long as the default 12M fan
+TP_RATES = ((0.25, "DGS3MO"), (0.5, "DGS6MO"), (1.0, "DGS1"), (2.0, "DGS2"), (3.0, "DGS3"))  # FRED Treasury by tenor
+TP_NAMES = {"mean": "Mean", "median": "Median", "low": "Low", "high": "High"}   # tile and label order
+TP_HOW = (
+    f"- **Left: price.** The stock's daily close over the last {TP_HISTORY_MONTHS} months.\n"
+    "- **Right: the options-implied range.** From the last price out to the chosen expiry, the fan shows the range "
+    "of prices that the option market's prices imply for each date: the darker band holds the middle 50% of "
+    "outcomes (25th to 75th percentile), the lighter band 90% (5th to 95th), and the dashed line is the median.\n"
+    "- **Diamonds: analyst targets.** Yahoo's consensus target price (mean and median of the analysts covering the "
+    "stock) and the lowest and highest single target, placed on the expiry date. Each label and tile gives the "
+    "risk-neutral probability that the stock **ends at or above** that price on the expiry date.\n"
+    "- **How to use it.** Compare the targets with the fan. A target inside the darker band is a move the option "
+    "market prices as ordinary for the horizon; one near the edge of the lighter band, or outside it, is a move it "
+    "prices as unusual. A low probability for the consensus target means the analysts are more optimistic than "
+    "option prices; a high one means they are less optimistic. Read it alongside the valuation panels, not as a "
+    "signal on its own.\n"
+    "- **Expiry.** Defaults to the listed expiry closest to 12 months, the horizon of a price target. Pick another "
+    "to see how the range widens or narrows with time; the footer says how far the expiry is from 12 months.\n"
+    "- **Stock.** Follows the open interest panel above. Picking a stock here unlinks it; \"Follow the chart above\" "
+    "links it again."
+)
+TP_ASSUMPTIONS = (
+    "- **Risk-neutral, not real-world.** Option prices include a premium that investors pay for protection and "
+    "demand for bearing risk. The probabilities they imply therefore usually **understate the real-world chance of "
+    "rises and overstate the chance of falls**. They describe how options are priced, not how likely an outcome is, "
+    "and they are not a forecast.\n"
+    "- **Ends at or above, on the expiry date.** The probability is for the price on the expiry date only. A price "
+    "that touches the target earlier and falls back does not count; the chance of touching it at any time before "
+    "expiry is higher (roughly twice as high for a target far from the price).\n"
+    "- **12-month targets.** Yahoo's targets are treated as 12-month targets, and the default expiry is the listed "
+    "one closest to 12 months, which can be a month or more away from it.\n"
+    "- **Analyst targets.** Yahoo's consensus, with no date for each analyst's target, so some may be months old. "
+    "The low and high are single analysts.\n"
+    "- **Forward price.** From put-call parity on the five strikes nearest the price: forward = strike + (call mid − "
+    "put mid) / discount factor, median of the five. This includes expected dividends without needing to know them. "
+    "The discount rate is the FRED Treasury yield closest to the expiry's tenor (3M, 6M, 1Y, 2Y or 3Y).\n"
+    "- **Implied volatility.** Solved (Black-76 on the forward) from the bid/ask mid of each out-of-the-money option: "
+    "puts below the forward, calls above. Quotes without a bid, or with a spread above "
+    f"{options.MAX_REL_SPREAD:.0%} of the mid, are dropped. US stock options are American-style; out-of-the-money "
+    "options carry little early-exercise value, so they are priced as European.\n"
+    "- **Smile and probability.** The implied volatilities are fitted with a quadratic in log(strike / forward), "
+    "weighted towards strikes near the price, and continued along its edge slope beyond the strikes quoted (targets "
+    "out there are marked *). The probability of ending above a price K is minus the slope of the call price in K "
+    "(Breeden-Litzenberger), so it includes the volatility skew; with typical equity skew this gives a higher "
+    "probability of moderate rises than a single-volatility (lognormal) model.\n"
+    "- **The fan before expiry.** Only the expiry end comes from option prices. Between today and expiry, the "
+    "expiry's range is scaled by the square root of time (same shape, variance growing evenly with time).\n"
+    f"- **Liquidity.** At least {options.MIN_QUOTES_SIDE} usable quotes are needed on each side of the forward, or "
+    "no distribution is shown. The footer flags wide quotes."
+)
+TP_CAVEAT = ("Risk-neutral probabilities, not forecasts: they usually understate the real-world chance of rises and "
+             "overstate the chance of falls. Option quotes are a snapshot; Yahoo lists options only for US listings.")
+
+
+def _mark_tp_custom() -> None:
+    st.session_state["tp_custom"] = True
+
+
+def _reset_tp() -> None:
+    st.session_state["tp_custom"] = False
+
+
+def _tp_raw(imp: options.Implied, unit: str) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Quotes priced (with the fitted smile and the probability of ending above each strike) and the range's
+    percentiles at expiry."""
+    q = imp.quotes
+    cur = unit.strip()
+    quotes = pd.DataFrame({
+        f"Strike ({cur})": q["strike"], "Type": q["type"].str.capitalize(), "Bid": q["bid"], "Ask": q["ask"],
+        "Mid": q["mid"], "Spread (% of mid)": q["spread"] * 100, "IV (%)": q["iv"] * 100,
+        "Fitted IV (%)": q["fit_iv"] * 100, "P(ends ≥ strike) (%)": [imp.prob_above(k) * 100 for k in q["strike"]],
+    })
+    pcts = pd.DataFrame({"Percentile": [f"{p * 100:.0f}th" for p in options.CONE_QUANTILES],
+                         f"Price at expiry ({cur})": [imp.quantile(p) for p in options.CONE_QUANTILES]})
+    return quotes, pcts
+
+
+def _target_prob_panel(prices: pd.DataFrame, ticker_of: dict[str, str], follow: str | None) -> None:
+    """Risk-neutral range of the price at one expiry (default: closest to 12 months), drawn as a fan after the price
+    history, with Yahoo's analyst targets and the probability of ending at or above each (DESIGN.md 14, "Analyst
+    target probability"). The stock follows the open interest panel until the user picks another here."""
+    title = "Analyst targets vs options-implied range"
+    label_of = {t: label for label, t in ticker_of.items()}
+    if not st.session_state.get("tp_custom") and follow in label_of:
+        st.session_state["tp_sel"] = label_of[follow]  # set before the widget is created
+    with st.container(border=True):
+        head = st.container()  # filled after the controls so the takeaway can use the loaded data
+        col_s, col_e = st.columns(2)
+        with col_s:
+            ticker = _pe_select("tp_sel", ticker_of, default=OPT_DEFAULT, on_change=_mark_tp_custom)
+            if st.session_state.get("tp_custom"):
+                st.button("Follow the chart above", icon=":material/link:", on_click=_reset_tp, key="tp_reset")
+        expiries = data.option_expiries(ticker) if ticker else []
+        today = pd.Timestamp.now(tz=data.US_EASTERN).date()
+        with col_e:
+            default = options.nearest_expiry(expiries, today)
+            picked = st.selectbox(
+                "Expiry", expiries, key=f"tp_exp_{ticker}", disabled=not expiries,
+                index=expiries.index(default) if default is not None else None,
+                format_func=lambda e: _opt_expiry_label(e, today),
+                help="Default: the listed expiry closest to 12 months, the horizon of an analyst price target.")
+
+        def empty(message: str, notes: tuple[str, ...] = ()) -> None:
+            with head:
+                theme.panel_header(title, "Price · options-implied range at expiry · daily snapshot")
+            st.info(message)
+            theme.panel_footer(STOCK_SOURCE, "Daily snapshot", None, caveat=" ".join([*notes, TP_CAVEAT]))
+
+        if not ticker:
+            return empty("No stock prices available." if not ticker_of else "Select a stock.")
+        if not expiries or picked is None:
+            return empty(f"Yahoo Finance lists no options for {ticker}. Option chains are available for US-listed "
+                         "stocks and ETFs only.")
+        chain, info, notice = data.load_options(ticker, [picked])
+        if notice:
+            st.warning(notice)
+        if chain.empty:
+            return empty(f"No option data for {ticker}.")
+
+        notes: list[str] = []
+        now = pd.Timestamp.now(tz="UTC")
+        spot, unit = float(info["spot"]), f" {info['currency']}"
+        asof = pd.Timestamp(info["quote_time"].tz_convert(data.US_EASTERN).date())
+        series = min(TP_RATES, key=lambda r: abs(r[0] - options.years_to_expiry(picked, now)))[1]
+        rate = _opt_rate(notes, series)
+        imp, why = options.implied_distribution(chain, spot, now, rate)
+        if imp is None:
+            return empty(f"Not enough usable option quotes for {ticker} expiring {picked:%d %b %Y}: {why}. A range "
+                         "built from so few prices would mostly show noise. Try another expiry, or a more widely "
+                         "traded stock.", tuple(notes))
+
+        tg, t_notice = data.load_price_targets(ticker)
+        if t_notice:
+            st.warning(t_notice)
+        targets = {k: tg["targets"][k] for k in TP_NAMES if k in tg["targets"]}
+        if targets and tg["currency"] and tg["currency"] != info["currency"]:
+            notes.append(f"Yahoo lists the targets in {tg['currency']} and the options in {info['currency']}; "
+                         "they are compared without conversion.")
+        probs = {k: imp.prob_above(v) for k, v in targets.items()}
+        days = (picked.date() - today).days
+        lead = next((k for k in ("mean", "median") if k in targets), None)
+        sm = summarise_target_prob(ticker, picked, days, spot, unit, asof, imp.quantile(0.25), imp.quantile(0.75),
+                                   target=(TP_NAMES[lead].lower(), targets[lead], probs[lead]) if lead else None,
+                                   analysts=tg["analysts"])
+        with head:
+            theme.panel_header(title, f"{unit.strip()} · daily close, then the options-implied range to expiry · % = "
+                                      "risk-neutral probability of ending at or above · daily snapshot", sm.text)
+
+        if targets:
+            theme.kpi_strip([dict(
+                label=f"{TP_NAMES[k]} target {theme.fmt_num(v, 2, unit)}" + (" *" if imp.extrapolated(v) else ""),
+                value=probs[k] * 100, decimals=0, unit="%", delta=(v / spot - 1) * 100, delta_decimals=1,
+                delta_unit="% vs last", good_when=None,
+                help=f"Risk-neutral probability, priced by options expiring {picked:%d %b %Y}, that {ticker} ends at "
+                     f"or above {theme.fmt_num(v, 2, unit)}. Not a real-world forecast; see 'Assumptions' below.")
+                for k, v in targets.items()])
+        else:
+            st.info(f"Yahoo Finance lists no analyst price targets for {ticker} (usual for ETFs and indices). The "
+                    "options-implied range is shown without them.")
+
+        close = prices[ticker].dropna() if ticker in prices else pd.Series(dtype=float)
+        history = close.loc[close.index > close.index[-1] - pd.DateOffset(months=TP_HISTORY_MONTHS)] \
+            if not close.empty else close
+        cone = imp.cone(asof)
+        pct = lambda q: cone[q].rename(f"{q * 100:.0f}th percentile")  # noqa: E731
+        markers = [(f"{TP_NAMES[k]} {theme.fmt_num(v, 2)} · {theme.fmt_num(probs[k] * 100, 0, '%')}"
+                    + (" *" if imp.extrapolated(v) else ""), v) for k, v in targets.items()]
+        fig = theme.cone_fig(history, [("5–95% range", pct(0.05), pct(0.95)), ("25–75% range", pct(0.25), pct(0.75))],
+                             cone[0.5].rename("Median"), markers=markers, unit=unit, axis_decimals=0)
+        theme.render(fig, key="tp_cone")
+        with st.expander("How to use this chart"):
+            st.markdown(TP_HOW)
+        with st.expander("Assumptions and method"):
+            st.markdown(TP_ASSUMPTIONS)
+
+        if abs(days - options.TARGET_HORIZON_DAYS) > 14:
+            notes.append(f"Targets are taken as 12-month; this expiry is {days:,} days away "
+                         f"({abs(days - options.TARGET_HORIZON_DAYS):,} days {'short of' if days < 365 else 'beyond'} "
+                         "12 months).")
+        if any(imp.extrapolated(v) for v in targets.values()):
+            lo, hi = imp.strike_range
+            notes.append(f"* Beyond the strikes quoted ({theme.fmt_num(lo, 2)}–{theme.fmt_num(hi, 2, unit)}): the "
+                         "smile is extrapolated, so that probability is less reliable.")
+        if not imp.parity:
+            notes.append("No strike near the price has both a two-sided call and put quote: the forward is the last "
+                         "price grown at the risk-free rate, with no dividends.")
+        spread = float(imp.quotes["spread"].median())
+        if spread > options.WIDE_SPREAD:
+            notes.append(f"Quotes are wide (median bid/ask spread {theme.fmt_num(spread * 100, 0, '%')} of the mid): "
+                         "treat the probabilities as rough.")
+        if imp.smoothed > 0.01:
+            notes.append("The fitted smile implied a negative probability in places; it was smoothed (largest change "
+                         f"{theme.fmt_num(imp.smoothed * 100, 1)} pp).")
+        if history.empty:
+            notes.append(f"No saved price history for {ticker}.")
+        notes.append(f"{len(imp.quotes):,} quotes priced; forward {theme.fmt_num(imp.forward, 2, unit)}; rate FRED "
+                     f"{series} {theme.fmt_num(rate * 100, 2, '%')}.")
+        theme.panel_footer(STOCK_SOURCE, "Daily snapshot (option quotes and analyst targets as listed by Yahoo)", asof,
+                           stale=sm.stale, caveat=" ".join([*notes, TP_CAVEAT]))
+        with st.expander("Raw data"):
+            quotes, pcts = _tp_raw(imp, unit)
+            st.dataframe(quotes, hide_index=True, width="stretch", column_config={
+                c: st.column_config.NumberColumn(format="%.2f") for c in quotes.columns if c != "Type"})
+            st.dataframe(pcts, hide_index=True, width="stretch", column_config={
+                c: st.column_config.NumberColumn(format="%.2f") for c in pcts.columns if c != "Percentile"})
 
 
 def _currency_names(series: dict[str, pd.Series]) -> tuple[dict[str, str], str | None]:

@@ -98,6 +98,20 @@ with st.container(border=True):
                                               ("Max pain 100.00", 100.0, "dash")]), key="sg_oi")
     theme.panel_footer("Synthetic", "Daily snapshot", days[-1])
 
+with st.container(border=True):
+    theme.panel_header("Price into a fan of ranges", "Price history, then percentile bands to a future date, labelled "
+                                                     "markers at its end (two placed close to test label spacing)")
+    fan_days = pd.bdate_range(px.index[-1], periods=180)
+    tau = np.linspace(0, 1, len(fan_days))
+    fan = {z: pd.Series(px.iloc[-1] * np.exp(z * 0.3 * np.sqrt(tau)), index=fan_days) for z in (-1.645, -0.674, 0, 0.674, 1.645)}
+    theme.render(theme.cone_fig(
+        px, [("5–95% range", fan[-1.645].rename("5th percentile"), fan[1.645].rename("95th percentile")),
+             ("25–75% range", fan[-0.674].rename("25th percentile"), fan[0.674].rename("75th percentile"))],
+        fan[0].rename("Median"), markers=[("Mean 112.00 · 33%", 112.0), ("Median 113.50 · 31%", 113.5),
+                                          ("Low 85.00 · 85%", 85.0), ("High 140.00 · 8%", 140.0)],
+        unit=" USD", axis_decimals=0), key="sg_cone")
+    theme.panel_footer("Synthetic", "Daily snapshot", days[-1])
+
 # ---------- What changed ----------
 st.subheader("What changed", anchor=False)
 lines = whats_changed({"10Y–2Y spread": sm, "BB OAS": summarise(credit["US BB"], TakeawaySpec("BB OAS", unit="%"))} if sm else {})

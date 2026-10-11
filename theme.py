@@ -495,6 +495,56 @@ def oi_profile_fig(
     return fig
 
 
+def cone_fig(
+    price: pd.Series, bands: Sequence[tuple[str, pd.Series, pd.Series]], median: pd.Series, *,
+    markers: Sequence[tuple[str, float]] = (), unit: str = "", decimals: int = 2, axis_decimals: int | None = None,
+    height: int = 400,
+) -> go.Figure:
+    """Price history running into a fan of ranges out to a future date (DESIGN.md 14, "Analyst target probability").
+    `bands` are (legend name, lower, upper) on the fan's date index, widest first; each is the same `muted` 20% tint
+    as band_fig, so inner bands read darker. Each bound's own `.name` labels it in the hover. `median` is dashed
+    `text2`. `markers` are (label, y) points at the fan's last date, with the label printed to the right (nudged apart
+    so labels never overlap), so colour is not the only signal."""
+    t = tokens()
+    s = price.dropna()
+    end = median.index[-1]
+    fig = _base_fig(height, unit, decimals if axis_decimals is None else axis_decimals)
+    fig.update_layout(hovermode="x unified")
+    hover = lambda name: f"{name}: %{{y:,.{decimals}f}}{unit}<extra></extra>"  # noqa: E731
+    for name, lower, upper in bands:
+        fig.add_trace(go.Scatter(x=upper.index, y=upper.values, mode="lines", line=dict(width=0), showlegend=False,
+                                 hovertemplate=hover(upper.name)))
+        fig.add_trace(go.Scatter(x=lower.index, y=lower.values, mode="lines", line=dict(width=0), fill="tonexty",
+                                 fillcolor=_rgba(t["muted"], 0.2), name=name, hovertemplate=hover(lower.name)))
+    fig.add_trace(go.Scatter(x=median.index, y=median.values, mode="lines", name=median.name,
+                             line=dict(color=t["text2"], width=1.5, dash="dash"), hovertemplate=hover(median.name)))
+    fig.add_trace(go.Scatter(x=s.index, y=s.values, mode="lines", name="Close", line=dict(color=t["text"], width=2),
+                             hovertemplate=hover("Close")))
+    values = [s.to_numpy(), median.to_numpy(), *[b.to_numpy() for _, lo, hi in bands for b in (lo, hi)],
+              np.array([y for _, y in markers])]
+    y_lo, y_hi = min(float(np.nanmin(v)) for v in values if len(v)), max(float(np.nanmax(v)) for v in values if len(v))
+    pad = (y_hi - y_lo) * 0.04
+    y_lo, y_hi = y_lo - pad, y_hi + pad
+    if markers:
+        fig.add_trace(go.Scatter(x=[end] * len(markers), y=[y for _, y in markers], mode="markers",
+                                 name="Analyst targets", marker=dict(symbol="diamond", size=9, color=t["accent"]),
+                                 customdata=[label for label, _ in markers],
+                                 hovertemplate="%{customdata}<extra></extra>"))
+        gap = (y_hi - y_lo) * 15 / max(height - 90, 100)   # about 15px between label baselines
+        placed: list[float] = []
+        for label, y in sorted(markers, key=lambda m: m[1]):
+            ly = max(y, placed[-1] + gap) if placed else y
+            placed.append(ly)
+            fig.add_annotation(x=end, y=ly, xanchor="left", xshift=8, text=label, showarrow=False,
+                               font=dict(color=t["text"], size=11), bgcolor=_rgba(t["bg"], 0.7))
+        y_hi = max(y_hi, placed[-1] + gap / 2)
+    start = s.index[0] if len(s) else median.index[0]
+    room = max((end - start) * 0.2, pd.Timedelta(days=30))   # space right of the fan for the printed labels
+    fig.update_xaxes(range=[start, end + room], tickformat="%b %y", hoverformat="%d %b %Y")
+    fig.update_yaxes(range=[y_lo, y_hi])
+    return fig
+
+
 def add_recessions(fig: go.Figure, usrec: pd.Series, x_min, x_max) -> None:
     """Shade NBER recessions (FRED USREC: monthly, 1 = recession) as muted bands under the lines.
     Clipped to [x_min, x_max] so the shading never stretches the x-axis beyond the data."""
