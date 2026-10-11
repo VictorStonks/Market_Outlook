@@ -861,14 +861,30 @@ _OPTION_WORKERS = 4            # parallel chain requests for "All expiries"; mor
 _LAST_GOOD_OPTIONS: dict[tuple[str, str], tuple[pd.DataFrame, dict]] = {}
 
 
+_LAST_GOOD_EXPIRIES: dict[str, list[pd.Timestamp]] = {}
+
+
 @st.cache_data(ttl=3600)
-def option_expiries(ticker: str) -> list[pd.Timestamp]:
-    """Listed expiries for `ticker`, nearest first; empty when Yahoo has none (non-US listings) or the fetch fails."""
+def _fetch_expiries(ticker: str) -> list[pd.Timestamp]:
+    """Listed expiries, nearest first; empty when Yahoo lists none (non-US listings). Raises on a failed fetch, so a
+    failure is never cached (Yahoo rate-limits shared cloud hosts; a cached [] would hide options for an hour)."""
+    return [pd.Timestamp(e) for e in yf.Ticker(ticker).options]
+
+
+def option_expiries(ticker: str) -> tuple[list[pd.Timestamp], str | None]:
+    """Listed expiries for `ticker` and a notice; never raises. An empty list with no notice means Yahoo lists no
+    options. On a failed fetch: the last good list with a notice, or [] with a notice (DESIGN.md 5.4)."""
     try:
-        return [pd.Timestamp(e) for e in yf.Ticker(ticker).options]
+        out = _fetch_expiries(ticker)
+        _LAST_GOOD_EXPIRIES[ticker] = out
+        return out, None
     except Exception as exc:
         log.warning("Option expiries fetch failed for %s: %s", ticker, exc)
-        return []
+        reason = type(exc).__name__
+    if ticker in _LAST_GOOD_EXPIRIES:
+        return _LAST_GOOD_EXPIRIES[ticker], f"Fetch failed for {ticker} option expiries ({reason}); showing an earlier list."
+    return [], (f"Fetch failed for {ticker} option expiries ({reason}): Yahoo Finance did not respond or limited the "
+                "request. Try again in a few minutes.")
 
 
 def _fetch_option_chain(ticker: str, expiry: pd.Timestamp) -> tuple[pd.DataFrame, dict]:

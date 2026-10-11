@@ -525,7 +525,7 @@ def _options_oi_panel(prices: pd.DataFrame, ticker_of: dict[str, str]) -> str | 
         col_s, col_e = st.columns(2)
         with col_s:
             ticker = _pe_select("opt_sel", ticker_of, default=OPT_DEFAULT)
-        expiries = data.option_expiries(ticker) if ticker else []
+        expiries, exp_notice = data.option_expiries(ticker) if ticker else ([], None)
         today = pd.Timestamp.now(tz=data.US_EASTERN).date()
         with col_e:
             choices = [*expiries, options.ALL_EXPIRIES]
@@ -554,18 +554,21 @@ def _options_oi_panel(prices: pd.DataFrame, ticker_of: dict[str, str]) -> str | 
                              help="Max pain needs a single expiry; gamma flip needs the GEX toggle.") \
                 if line_options else []
 
-        def empty(message: str, notes: tuple[str, ...] = ()) -> str | None:
+        def empty(message: str, notes: tuple[str, ...] = (), failed: bool = False) -> str | None:
             with head:
                 theme.panel_header(title, "Contracts by strike · daily snapshot")
-            st.info(message)
+            (st.warning if failed else st.info)(message)
             theme.panel_footer(STOCK_SOURCE, "Daily snapshot", None, caveat=" ".join([*notes, OPT_CAVEAT]))
             return ticker
 
         if not ticker:
             return empty("No stock prices available." if not ticker_of else "Select a stock.")
         if not expiries:
-            return empty(f"Yahoo Finance lists no options for {ticker}. Option chains are available for US-listed "
-                         "stocks and ETFs only.")
+            return empty(exp_notice, failed=True) if exp_notice else \
+                empty(f"Yahoo Finance lists no options for {ticker}. Option chains are available for US-listed "
+                      "stocks and ETFs only.")
+        if exp_notice:
+            st.warning(exp_notice)
         chain, info, notice = data.load_options(ticker, expiries if not single else [picked])
         if notice:
             st.warning(notice)
@@ -751,7 +754,7 @@ def _target_prob_panel(prices: pd.DataFrame, ticker_of: dict[str, str], follow: 
             ticker = _pe_select("tp_sel", ticker_of, default=OPT_DEFAULT, on_change=_mark_tp_custom)
             if st.session_state.get("tp_custom"):
                 st.button("Follow the chart above", icon=":material/link:", on_click=_reset_tp, key="tp_reset")
-        expiries = data.option_expiries(ticker) if ticker else []
+        expiries, exp_notice = data.option_expiries(ticker) if ticker else ([], None)
         today = pd.Timestamp.now(tz=data.US_EASTERN).date()
         with col_e:
             default = options.nearest_expiry(expiries, today)
@@ -761,17 +764,20 @@ def _target_prob_panel(prices: pd.DataFrame, ticker_of: dict[str, str], follow: 
                 format_func=lambda e: _opt_expiry_label(e, today),
                 help="Default: the listed expiry closest to 12 months, the horizon of an analyst price target.")
 
-        def empty(message: str, notes: tuple[str, ...] = ()) -> None:
+        def empty(message: str, notes: tuple[str, ...] = (), failed: bool = False) -> None:
             with head:
                 theme.panel_header(title, "Price · options-implied range at expiry · daily snapshot")
-            st.info(message)
+            (st.warning if failed else st.info)(message)
             theme.panel_footer(STOCK_SOURCE, "Daily snapshot", None, caveat=" ".join([*notes, TP_CAVEAT]))
 
         if not ticker:
             return empty("No stock prices available." if not ticker_of else "Select a stock.")
         if not expiries or picked is None:
-            return empty(f"Yahoo Finance lists no options for {ticker}. Option chains are available for US-listed "
-                         "stocks and ETFs only.")
+            return empty(exp_notice, failed=True) if exp_notice else \
+                empty(f"Yahoo Finance lists no options for {ticker}. Option chains are available for US-listed "
+                      "stocks and ETFs only.")
+        if exp_notice:
+            st.warning(exp_notice)
         chain, info, notice = data.load_options(ticker, [picked])
         if notice:
             st.warning(notice)
@@ -1779,8 +1785,10 @@ def render_sector_line_panel() -> None:
 
 def _table_timeframes_changed(key: str, prev_key: str) -> None:
     """Keep the "All" pill and the individual timeframe pills of a returns table consistent with each other.
-    `key` holds the pills' selection, `prev_key` the selection before this change."""
-    new, prev = set(st.session_state[key] or []), set(st.session_state[prev_key])
+    `key` holds the pills' selection, `prev_key` the selection before this change. Callbacks run before the script
+    body, so after a session reset (e.g. a reconnect on Streamlit Cloud) the keys may not exist yet: read with .get."""
+    new = set(st.session_state.get(key) or [])
+    prev = set(st.session_state.get(prev_key) or new)
     every = set(sectors.TIMEFRAMES)
     if ALL_TIMEFRAMES in new and ALL_TIMEFRAMES not in prev:      # All switched on: select everything
         new = every | {ALL_TIMEFRAMES}
