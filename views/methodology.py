@@ -106,7 +106,7 @@ st.markdown(
     "+1 the down colour (red by default), following the sidebar convention. The value is printed in every cell."
 )
 
-st.subheader("Forward P/E screen", anchor=False)
+st.subheader("Stock screener", anchor=False)
 st.markdown(
     "One row per S&P 500 stock, sortable by any column (click the header; click again to reverse), with a search "
     "box and a sector filter. Opens largest market cap first.\n"
@@ -120,7 +120,19 @@ st.markdown(
     "- **Target and upside.** Yahoo's mean analyst target (a consensus, with no date per analyst), saved for every "
     "constituent by the weekly share-count download, which reads it from the same Yahoo response at no extra cost. "
     "Upside = target / last close − 1. It is the analysts' view, not a forecast by this dashboard. Shown as — when "
-    "Yahoo lists no target or its currency differs from the listing's."
+    "Yahoo lists no target or its currency differs from the listing's.\n"
+    "- **Premium to sector.** Stock forward P/E / sector P/E − 1, on every day of the sidebar lookback where both "
+    "are positive (negative = discount). Three columns: its average over the window, today's value, and today's "
+    "value minus the average in standard deviations over the same window (at least 8 days needed). The sector "
+    "average includes the stock itself, as in the Sector P/E column, so the largest companies' premiums are pulled "
+    "towards zero. The average is a plain mean: days when NTM EPS was near zero give very high P/Es and can inflate "
+    "it to hundreds or thousands of %. Past sector P/Es use today's share counts, and past NTM EPS is the perfect-foresight "
+    "approximation described above.\n"
+    "- **Distance from moving averages.** Last close / mean of the stock's last 60, 100 or 200 daily closes − 1 "
+    "(split-adjusted, not dividend-adjusted, as on the price charts). Shown as — with fewer closes than the window.\n"
+    "- **Shading.** Each shaded column is scaled on the rows shown (after the search and sector filter) and "
+    "saturates at its 95th percentile. P/E σ, premium σ and the moving-average columns use the up colour when "
+    "below; Upside uses it when the target is above the price."
 )
 
 st.subheader("Options open interest, Equities page", anchor=False)
@@ -186,7 +198,7 @@ st.subheader("Stock universe and added tickers, Equities page", anchor=False)
 st.markdown(
     "The default universe is today's S&P 500 constituents. Any other stock on Yahoo Finance can be added by typing "
     "its ticker, with the exchange suffix (D05.SI, 7203.T, 0700.HK, ASML.AS), into a stock search box on the "
-    "Equities page, or with the Add button under the forward P/E screen's search box. It is downloaded once (10 years "
+    "Equities page, or with the Add button under the stock screener's search box. It is downloaded once (10 years "
     "of daily prices, plus EPS when a P/E panel needs it), saved, and offered in every stock box from then on.\n"
     "- **Currency.** Added stocks are priced in their listing's own currency. With mixed currencies the stock price "
     "chart shows the currency in each legend name. Normalised prices and correlations are local-currency returns, "
@@ -196,8 +208,8 @@ st.markdown(
     "warns that the P/E may be off by the exchange rate. Quarters may be 45 to 140 days apart (S&P 500: 60 to 125), "
     "because many non-US companies report annual results later than quarterly ones.\n"
     "- **Comparisons.** Sector and index averages are built from the S&P 500, so a stock outside it is compared "
-    "with the S&P 500 average only. In the forward P/E screen, added stocks show as \"Non-S&P 500\" rows: market "
-    "cap is converted to USD at the latest Yahoo FX rate, and Sector P/E shows the S&P 500 average.\n"
+    "with the S&P 500 average only. In the stock screener, added stocks show as \"Non-S&P 500\" rows: market "
+    "cap is converted to USD at the latest Yahoo FX rate, and Sector P/E and the premium columns use the S&P 500 average.\n"
     "- **Refresh.** Prices of added tickers refresh daily (or on \"Refresh data\"); names, currencies and share "
     "counts weekly."
 )

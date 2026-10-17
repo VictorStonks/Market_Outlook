@@ -1063,7 +1063,7 @@ def _read_targets_cached(saved_at: float) -> dict[str, dict]:
 
 def load_targets_snapshot() -> dict[str, dict]:
     """Every saved targets entry by ticker ({targets, analysts, currency, saved}); {} when there is no snapshot. No
-    Yahoo calls: for tables over the whole universe (the forward P/E screen)."""
+    Yahoo calls: for tables over the whole universe (the stock screener)."""
     try:
         return _read_targets_cached(TARGETS_FILE.stat().st_mtime)
     except FileNotFoundError:

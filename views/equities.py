@@ -1,4 +1,4 @@
-"""Equities: stock price, normalised price, sector return, country return, forward P/E, forward P/E comparison, forward P/E screen, rolling correlation, options open interest and analyst target probability panels (yfinance) (DESIGN.md sections 4 and 11 step 9)."""
+"""Equities: stock price, normalised price, sector return, country return, forward P/E, forward P/E comparison, stock screener, rolling correlation, options open interest and analyst target probability panels (yfinance) (DESIGN.md sections 4 and 11 step 9)."""
 import streamlit as st
 
 import panels
@@ -18,7 +18,7 @@ with left:
 with right:
     panels.render_country_table_panel()
 panels.render_ntm_pe_row(lookback_years)  # forward P/E history and its comparison to the sector / S&P 500
-panels.render_pe_screen_panel(lookback_years)  # every stock's forward P/E, σ vs its own average and sector P/E
+panels.render_pe_screen_panel(lookback_years)  # stock screener: forward P/E, σ, sector premium, analyst upside, distance from moving averages
 left, right = st.columns(2)  # rolling correlation of two stocks, and a correlation matrix of stocks and countries
 with left:
     panels.render_correlation_panel(lookback_years)

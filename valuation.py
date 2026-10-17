@@ -112,27 +112,61 @@ def group_ntm_pe(prices: pd.DataFrame, eps: pd.DataFrame, shares: pd.Series) -> 
     return out.dropna(subset=["pe"])
 
 
+MA_WINDOWS = (60, 100, 200)  # trading days, for the screen's distance-from-moving-average columns
+
+
+def ma_gap(prices: pd.DataFrame, n: int) -> pd.Series:
+    """% distance of each stock's last close from the mean of its last `n` closes (its own trading days, the last
+    close included); NaN with fewer than `n` closes. Positive = above the moving average."""
+    def one(col: pd.Series) -> float:
+        c = col.dropna()
+        return float(c.iloc[-1] / c.iloc[-n:].mean() - 1) * 100 if len(c) >= n else np.nan
+    return prices.apply(one).astype(float)
+
+
+def _zscore(now: pd.Series, history: pd.DataFrame, min_obs: int) -> pd.Series:
+    """`now` minus the mean of `history` per column, in sample σ of `history`; NaN with fewer than `min_obs` values."""
+    sd = history.std()
+    return ((now - history.mean()) / sd.where(sd > 0)).where(history.count() >= min_obs)
+
+
 def pe_screen(prices: pd.DataFrame, eps: pd.DataFrame, shares: pd.Series, sector_of: pd.Series,
-              cutoff: pd.Timestamp, min_obs: int = 8) -> pd.DataFrame:
+              cutoff: pd.Timestamp, min_obs: int = 8, fallback_pe: pd.Series | None = None) -> pd.DataFrame:
     """One row per stock in `prices` (index = ticker), on the latest price date:
     `market_cap` (today's shares x latest close), `pe` (NTM P/E, NaN unless NTM EPS is positive), `pe_z` (today's NTM P/E minus its mean since `cutoff`, in
     standard deviations of that window; NaN with fewer than `min_obs` positive-EPS days, the same windowed mean and
-    sample σ as the history chart's bands) and `sector_pe` (the stock's GICS sector average, as `group_ntm_pe`)."""
+    sample σ as the history chart's bands) and `sector_pe` (the stock's GICS sector average, as `group_ntm_pe`).
+    A stock with no sector is compared with `fallback_pe` (a group P/E history, e.g. the S&P 500's, carried forward
+    onto the stock's dates) when given, else its sector columns are NaN.
+    Premium to the sector, % (stock P/E / sector P/E − 1), over the same window and days with both P/Es positive:
+    `prem_avg` (its mean), `prem_now` (today's) and `prem_z` (today's minus the mean, in sample σ; `min_obs` rule).
+    `ma_60`, `ma_100`, `ma_200`: % distance of the last close from its moving average (`ma_gap`)."""
     tickers = prices.columns
     eps = eps.reindex(index=prices.index, columns=tickers)
     price, e_now = prices.iloc[-1], eps.iloc[-1]
     pe_now = price / e_now.where(e_now > 0)
-    history = (prices / eps.where(eps > 0)).loc[prices.index >= cutoff]
-    sd = history.std()
-    pe_z = ((pe_now - history.mean()) / sd.where(sd > 0)).where(history.count() >= min_obs)
+    in_window = prices.index >= cutoff
+    history = (prices / eps.where(eps > 0)).loc[in_window]
+    pe_z = _zscore(pe_now, history, min_obs)
 
+    window, eps_w = prices.loc[in_window], eps.loc[in_window]
+    group_hist = pd.DataFrame(np.nan, index=window.index, columns=tickers)
     sector = sector_of.reindex(tickers)
-    sector_pe = pd.Series(np.nan, index=tickers)
+    def fill(mask: pd.Series, line: pd.Series) -> None:  # the same group line in every column of `mask`
+        group_hist.loc[:, mask] = np.tile(line.reindex(window.index).to_numpy()[:, None], (1, int(mask.sum())))
+
     for name, members in sector.dropna().groupby(sector.dropna()).groups.items():
-        grp = group_ntm_pe(prices.iloc[[-1]], eps.iloc[[-1]], shares.reindex(members).dropna())
-        if not grp.empty:
-            sector_pe[sector == name] = float(grp["pe"].iloc[-1])
+        fill(sector == name, group_ntm_pe(window, eps_w, shares.reindex(members).dropna())["pe"])
+    if fallback_pe is not None and not fallback_pe.empty and sector.isna().any():
+        fill(sector.isna(), fallback_pe.reindex(fallback_pe.index.union(window.index)).ffill())
+    sector_pe = group_hist.iloc[-1]
+
+    premium = (history / group_hist - 1) * 100
+    prem_now = (pe_now / sector_pe - 1) * 100
 
     return pd.DataFrame({
         "market_cap": shares.reindex(tickers) * price, "pe": pe_now, "pe_z": pe_z, "sector_pe": sector_pe,
+        "prem_avg": premium.mean().where(premium.count() >= min_obs), "prem_now": prem_now,
+        "prem_z": _zscore(prem_now, premium, min_obs),
+        **{f"ma_{n}": ma_gap(prices, n) for n in MA_WINDOWS},
     }).rename_axis("ticker")

@@ -1361,15 +1361,16 @@ def _added_screen_rows(sp_prices: pd.DataFrame, eps_all: pd.DataFrame, shares: p
                        notes: list[str]) -> pd.DataFrame:
     """P/E screen rows for the added (non-S&P 500) tickers, in the same columns as valuation.pe_screen plus name and
     sector. Each uses its own closes and EPS; market cap is converted to USD at the latest Yahoo FX rate so the column
-    sorts with the S&P rows; sector P/E is the S&P 500 average (the default universe). Adds footer notes."""
+    sorts with the S&P rows; sector P/E and the premium columns use the S&P 500 average (the default universe). Adds
+    footer notes."""
     added = data.added_tickers()
     close_all, _ = data.load_added_prices("close")  # its notice was shown by _stock_options or the panel above
     if not added or close_all.empty:
         return pd.DataFrame()
-    sp_pe = float("nan")
+    sp_line = pd.Series(dtype=float)  # S&P 500 P/E history: sector P/E and premium comparison for added tickers
     if not (sp_prices.empty or eps_all.empty or shares.empty):
-        grp = valuation.group_ntm_pe(sp_prices.iloc[[-1]], eps_all.reindex(sp_prices.index).iloc[[-1]], shares)
-        sp_pe = float(grp["pe"].iloc[-1]) if not grp.empty else sp_pe
+        sp_w = sp_prices.loc[sp_prices.index >= cutoff - pd.Timedelta(days=14)]  # margin to carry onto earlier dates
+        sp_line = valuation.group_ntm_pe(sp_w, eps_all.reindex(sp_w.index), shares)["pe"]
     rows, no_fx, mixed = [], [], []
     for t, meta in sorted(added.items()):
         close = _pe_close(close_all, t)  # major unit (pence -> pounds), so P/E and the FX rate both use it
@@ -1380,19 +1381,19 @@ def _added_screen_rows(sp_prices: pd.DataFrame, eps_all: pd.DataFrame, shares: p
         eps = valuation.ntm_eps(valuation.build_quarters(reported, estimates, lag_days, _gap_days(t)), close.index) \
             if not reported.empty else pd.Series(float("nan"), index=close.index)
         one = valuation.pe_screen(close.to_frame(t), eps.to_frame(t), pd.Series({t: meta.get("shares")}, dtype=float),
-                                  pd.Series(dtype=object), cutoff)
+                                  pd.Series(dtype=object), cutoff, fallback_pe=sp_line)
         fx = data.fx_to_usd(data.major_currency(meta.get("currency"))[0])
         if fx is None:
             no_fx.append(t)
         if _eps_currency_note(t):
             mixed.append(f"{t} ({meta['financial_currency']} vs {data.major_currency(meta['currency'])[0]})")
         one["market_cap"] = one["market_cap"] * fx if fx is not None else float("nan")
-        one["sector_pe"] = sp_pe
         rows.append(one.assign(name=meta.get("name") or t, sector=NON_SP))
     if not rows:
         return pd.DataFrame()
     notes.append(f"{NON_SP} rows are tickers added from Yahoo Finance: market cap is converted to USD at the latest "
-                 "Yahoo FX rate, and Sector P/E shows the S&P 500 average.")
+                 "Yahoo FX rate, and Sector P/E and the sector premium columns use the S&P 500 average (its last "
+                 "value on or before each of the stock's dates).")
     if no_fx:
         notes.append(f"No FX rate for: {', '.join(no_fx)}, so market cap shows —.")
     if mixed:
@@ -1450,16 +1451,21 @@ def _screen_targets(view: pd.DataFrame, prices: pd.DataFrame) -> tuple[pd.DataFr
 
 
 def _pe_screen_styler(view: pd.DataFrame, cols: dict[str, str]):
-    """Display frame (company, ticker, then numbers in the order the owner asked for) with house number formats;
-    σ is shaded. Sorting in the table uses the underlying numbers, not the formatted text."""
+    """Display frame (company, ticker, then numbers in the order the owner asked for) with house number formats.
+    Shaded, each on the rows shown: P/E σ, premium σ and the moving-average gaps (below = up colour) and upside
+    (above = up colour). Sorting in the table uses the underlying numbers, not the formatted text."""
     shown = view.reset_index().rename(columns=cols)[list(cols.values())]
+    ma_cols = [cols[f"ma_{n}"] for n in valuation.MA_WINDOWS]
     formats = {cols["market_cap"]: (1, False), cols["pe"]: (1, False), cols["pe_z"]: (1, True),
-               cols["sector_pe"]: (1, False), cols["price"]: (2, False), cols["target"]: (2, False),
-               cols["upside"]: (1, True)}
+               cols["sector_pe"]: (1, False), cols["prem_avg"]: (1, True), cols["prem_now"]: (1, True),
+               cols["prem_z"]: (1, True), cols["price"]: (2, False), cols["target"]: (2, False),
+               cols["upside"]: (1, True), **{c: (1, True) for c in ma_cols}}
     styler = shown.style.format({c: (lambda v, d=d: theme.fmt_signed(v, d)) if signed else
                                  (lambda v, d=d: theme.fmt_num(v, d)) for c, (d, signed) in formats.items()},
                                 na_rep=theme.MISSING)
-    return theme.shade_signed(styler, [cols["pe_z"]], good_when="down", cap_quantile=SCREEN_SHADE_CAP)
+    styler = theme.shade_signed(styler, [cols["pe_z"], cols["prem_z"], *ma_cols], good_when="down",
+                                cap_quantile=SCREEN_SHADE_CAP)
+    return theme.shade_signed(styler, [cols["upside"]], good_when="up", cap_quantile=SCREEN_SHADE_CAP)
 
 
 def _pe_screen_csv(view: pd.DataFrame, cols: dict[str, str]) -> bytes:
@@ -1490,12 +1496,14 @@ def _pe_screen_add_button(query: str, universe: pd.DataFrame, view: pd.DataFrame
 @st.fragment
 def render_pe_screen_panel(lookback_years: int) -> None:
     """Every S&P 500 stock, plus any added tickers, in one sortable table: market cap, NTM P/E, how far that P/E is
-    from its own average over the sidebar lookback (σ, as on the history chart's bands) and the GICS sector's market-cap
-    weighted NTM P/E (S&P 500 average for added tickers). Search and sector filter above; a ticker not in the table
-    can be added from the search box; click a column header to sort it either way."""
-    title = "Forward P/E screen"
+    from its own average over the sidebar lookback (σ, as on the history chart's bands), the GICS sector's market-cap
+    weighted NTM P/E (S&P 500 average for added tickers), the stock's premium to it (average, today, σ), the analyst
+    target and upside, and the distance from the 60, 100 and 200-day moving averages. Search and sector filter above;
+    a ticker not in the table can be added from the search box; click a column header to sort it either way."""
+    title = "Stock screener"
     window = f"{lookback_years}Y"
-    subtitle = f"S&P 500 and added tickers · USD bn and x (see column headers) · daily · σ over the {window} window"
+    subtitle = (f"S&P 500 and added tickers · USD bn, x and % (see column headers) · daily · σ and averages over the "
+                f"{window} window")
     with st.container(border=True):
         head = st.container()  # filled after the controls so the takeaway describes the rows shown
         universe, universe_notice = data.load_universe()
@@ -1533,11 +1541,13 @@ def render_pe_screen_panel(lookback_years: int) -> None:
 
         cols = {"name": "Company", "ticker": "Ticker", "market_cap": "Market cap (USD bn)", "pe": "Fwd P/E (x)",
                 "pe_z": f"P/E σ vs {window} avg", "sector": "Sector", "sector_pe": "Sector P/E (x)",
-                "price": "Price", "target": "Target (mean)", "upside": "Upside (%)"}
+                "prem_avg": f"Avg sector prem. {window} (%)", "prem_now": "Sector prem. today (%)",
+                "prem_z": f"Prem. σ vs {window} avg", "price": "Price", "target": "Target (mean)",
+                "upside": "Upside (%)", **{f"ma_{n}": f"vs {n}D MA (%)" for n in valuation.MA_WINDOWS}}
         if not view.empty:
             st.dataframe(_pe_screen_styler(view, cols), hide_index=True, width="stretch", height=SCREEN_HEIGHT,
                          column_config={"Company": st.column_config.TextColumn(pinned=True)})
-            st.download_button("Download table (CSV)", _pe_screen_csv(view, cols), file_name="forward_pe_screen.csv",
+            st.download_button("Download table (CSV)", _pe_screen_csv(view, cols), file_name="stock_screener.csv",
                                mime="text/csv", icon=":material/download:", key="pe_screen_download",
                                help="The rows shown (search and sector filter applied).")
         elif available:
@@ -1552,7 +1562,17 @@ def render_pe_screen_panel(lookback_years: int) -> None:
             "or missing NTM EPS show — for P/E and σ.",
             "Sector P/E = GICS sector's total market cap over total NTM earnings (negative EPS excluded), as on the "
             "comparison chart. Market cap = today's shares outstanding per share class × last completed close.",
-            "Shading: a P/E below its own average uses the up colour; it saturates at the 95th percentile.",
+            f"Sector premium = stock P/E / Sector P/E − 1, on each day in the {window} window with both positive "
+            "(negative = discount). Avg = its mean over the window; today = the latest day; Prem. σ = today's premium "
+            "minus that mean, in standard deviations over the same window (needs at least 8 days). A stock is part "
+            "of its own sector average, so a large company's premium is pulled towards zero. Days when NTM EPS was "
+            "near zero give very high P/Es, which can inflate the average premium to hundreds or thousands of % "
+            "(and widen σ); the average is a plain mean, not trimmed.",
+            "vs 60D / 100D / 200D MA = last close / mean of the stock's last 60, 100 or 200 daily closes − 1 "
+            "(split-adjusted close, not dividend-adjusted); — with fewer closes than that.",
+            "Shading, on the rows shown: P/E σ, Prem. σ and the MA columns use the up colour when below (P/E below "
+            "its own average, premium below its usual level, price below its moving average); Upside uses the up "
+            "colour when the target is above the price. Each column saturates at its 95th percentile.",
             *added_notes,
             *target_notes,
         ]
