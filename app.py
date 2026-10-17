@@ -24,6 +24,8 @@ pages = st.navigation([
     st.Page("views/equities.py", title="Equities", icon=":material/candlestick_chart:"),
     st.Page("views/watchlist.py", title="Watchlist", icon=":material/visibility:"),
     st.Page("views/taa.py", title="TAA scorecard", icon=":material/table_chart:"),
+    st.Page("views/data_download.py", title="Yahoo Finance download", icon=":material/download:"),
+    st.Page("views/fred_download.py", title="FRED download", icon=":material/database:"),
     st.Page("views/methodology.py", title="Methodology & data", icon=":material/menu_book:"),
 ])
 pages.run()

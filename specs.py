@@ -126,3 +126,10 @@ CORP_CURVE = PanelSpec(
 RATES_CREDIT = [TREASURY, YIELD_CURVE, BREAKEVENS, STEEPNESS, OAS_QUALITY, OAS_HISTORY, YTW, CORP_CURVE]
 
 ALL_PANELS = MACRO + RATES_CREDIT
+
+
+def known_series() -> dict[str, str]:
+    """{FRED id: label} of every series the app charts, for the FRED download page's series box."""
+    out = {sid: label for spec in ALL_PANELS for label, sid in spec.series.items()}
+    out.update({HY_OAS: "HY OAS", RECESSIONS: "NBER recession indicator"})
+    return dict(sorted(out.items()))

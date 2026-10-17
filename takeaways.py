@@ -353,3 +353,35 @@ def summarise_smile(ticker: str, expiry: pd.Timestamp, forward: float, unit: str
             f"{fmt_num(call110, 1, '%')} at 110%, a {fmt_num(abs(skew), 1, ' pp')} gap with {side}. The fitted smile "
             f"misses the {quotes:,} quotes by {fmt_num(fit_error, 1, ' pp')} on average (root mean square).")
     return ReturnsSummary({"atm": atm, "skew": skew}, asof, (today - asof).days > MAX_AGE_DAYS["D"], text)
+
+
+def _or_list(items: Sequence[str]) -> str:
+    items = [i.lower() for i in items]
+    return items[0] if len(items) == 1 else f"{', '.join(items[:-1])} or {items[-1]}"
+
+
+def summarise_download(table: pd.DataFrame, lacking: Mapping[str, Sequence[str]],
+                       none_in_window: Mapping[str, Sequence[str]]) -> str:
+    """One sentence on the file the Data download page will write: tickers, datasets, rows and date span, which
+    tickers Yahoo has no data for in a selected dataset (`lacking`) and which have none inside the timeframe
+    (`none_in_window`). `table` has (Ticker, Dataset, Field) columns. Describes only."""
+    if table.empty:
+        return "No data for the tickers and datasets selected."
+    tickers = table.columns.get_level_values(0).unique()
+    datasets = table.columns.get_level_values(1).unique()
+    text = (f"{len(tickers)} ticker{'s' * (len(tickers) != 1)}, {len(datasets)} dataset{'s' * (len(datasets) != 1)}, "
+            f"{len(table):,} rows from {table.index.min():%d %b %Y} to {table.index.max():%d %b %Y}")
+    gaps = [f"{t} has no {_or_list(ds)} data" for t, ds in lacking.items() if ds]
+    gaps += [f"{t} has no {_or_list(ds)} in this timeframe" for t, ds in none_in_window.items() if ds]
+    return text + (f"; {'; '.join(gaps)}." if gaps else ".")
+
+
+def summarise_fred_download(table: pd.DataFrame, n_transforms: int, empty: Sequence[str]) -> str:
+    """One sentence on the file the FRED download page will write: series, transforms, rows and date span, and which
+    series have no observations in the timeframe. `table` has (Series ID, Title, Field) columns. Describes only."""
+    if table.empty:
+        return "No observations for the series selected in this timeframe."
+    n = table.columns.get_level_values(0).nunique()
+    text = (f"{n} series, {n_transforms} transform{'s' * (n_transforms != 1)}, {len(table):,} rows from "
+            f"{table.index.min():%d %b %Y} to {table.index.max():%d %b %Y}")
+    return text + (f"; no observations in this timeframe for {', '.join(empty)}." if empty else ".")

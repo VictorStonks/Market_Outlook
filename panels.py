@@ -6,6 +6,7 @@ controls, chart, footer (source, frequency, as-of, STALE, caveat), collapsed raw
 from __future__ import annotations
 
 import datetime as dt
+import hmac
 from dataclasses import dataclass, field, replace
 
 import numpy as np
@@ -16,13 +17,14 @@ import cape
 import correlation
 import countries
 import data
+import download
 import options
 import sectors
 import theme
 import valuation
 from takeaways import (MAX_AGE_DAYS, ReturnsSummary, Summary, TakeawaySpec, summarise, summarise_cape_fit,
                        summarise_corr_matrix, summarise_options, summarise_smile, summarise_target_prob,
-                       summarise_country_returns,
+                       summarise_country_returns, summarise_download, summarise_fred_download,
                        summarise_pe_comparison, summarise_pe_screen, summarise_returns, summarise_sector_returns,
                        summarise_sector_table)
 
@@ -2206,3 +2208,379 @@ def render_cape_row() -> None:
         _cape_band_panel(shiller, cape_now, live_date, live_notes)
     with right:
         _cape_fit_panel(shiller, cape_now, live_date)
+
+# --- Data download page (DESIGN.md 14, 2026-10-17) -------------------------------------------------------------------
+DOWNLOAD_SECRET = "DOWNLOAD_PASSWORD"   # in .streamlit/secrets.toml; without it the page stays locked (owner's choice)
+DOWNLOAD_MAX_TICKERS = 10
+DOWNLOAD_PREVIEW_ROWS = 1000            # the on-page table shows the latest rows only; the CSV has every row
+DOWNLOAD_DEFAULTS = {"interval": "Daily", "timeframe": "5Y"}
+_DL_TITLE = "Yahoo Finance download"
+_DL_HELP = {
+    download.PRICE: "Open, high, low, close, adjusted close and volume.",
+    download.DIVIDENDS: "Cash dividend per share on each ex-date.",
+    download.SPLITS: "Split ratio on each split date.",
+    download.EARNINGS: "Per report date: consensus EPS estimate, reported EPS and surprise %. Includes the next "
+                       "scheduled report.",
+    download.VALUATION: "Yahoo's valuation measures (last 15 month ends and today) plus our blended forward 12M EPS "
+                        "and P/E on every price row.",
+}
+NTM_FORMULA = (
+    "Fwd 12M EPS (blended) on date d = sum over fiscal quarters q of EPS(q) × (days of q inside d to d + 365) / "
+    "(days in q), so it rolls forward daily instead of jumping on report dates. Reported quarters use Yahoo's "
+    "reported EPS; the next two use Yahoo's consensus (current and next quarter); later ones repeat the same quarter "
+    "a year earlier × (next fiscal year / this fiscal year consensus EPS, capped at 0.5 to 2). "
+    "Fwd 12M P/E = Close (split-adj., in the currency's major unit) / Fwd 12M EPS, only where EPS > 0. Past values use "
+    "EPS reported later (perfect foresight), not what analysts expected at the time; \"uses estimates\" marks rows "
+    "whose 12-month window includes unreported quarters."
+)
+
+
+def download_unlocked() -> bool:
+    """Password gate for both download pages (one unlock opens both). Locked, with a note, when no password is
+    configured."""
+    try:
+        expected = str(st.secrets[DOWNLOAD_SECRET])
+    except (KeyError, FileNotFoundError):
+        st.info(f"Data downloads are switched off here. To switch it on, add {DOWNLOAD_SECRET} to "
+                ".streamlit/secrets.toml.")
+        return False
+    if st.session_state.get("_dl_unlocked"):
+        return True
+    with st.form("dl_unlock"):
+        typed = st.text_input("Password", type="password")
+        if st.form_submit_button("Unlock", type="primary"):
+            if hmac.compare_digest(typed.encode("utf-8"), expected.encode("utf-8")):
+                st.session_state["_dl_unlocked"] = True
+                st.rerun()
+            st.warning("Wrong password.")
+    return False
+
+
+def _dl_tickers(universe: pd.DataFrame) -> list[str]:
+    """Ticker box: S&P 500 labels, or any Yahoo ticker typed in (not added to the app's saved tickers)."""
+    ticker_of = dict(zip(universe["label"], universe["ticker"]))
+    if "dl_tickers" not in st.session_state:
+        st.session_state["dl_tickers"] = [label for label, t in ticker_of.items() if t == "AAPL"]
+    picked = st.multiselect(
+        "Tickers", list(ticker_of), key="dl_tickers", max_selections=DOWNLOAD_MAX_TICKERS, accept_new_options=True,
+        placeholder="Ticker or company name",
+        help=f"Any Yahoo Finance ticker, with its exchange suffix (e.g. ES3.SI, 0700.HK, ^STI, BTC-USD). "
+             f"Up to {DOWNLOAD_MAX_TICKERS}.",
+    )
+    tickers = []
+    for text in picked:
+        t = ticker_of.get(text) or data.normalise_ticker(text, set(ticker_of.values()))
+        if t is None:
+            st.warning(f"\"{text}\" is not a valid Yahoo Finance ticker.")
+        elif t not in tickers:
+            tickers.append(t)
+    return tickers
+
+
+def _dl_availability_table(raws: dict[str, download.Raw], avail: dict[str, dict[str, bool]]) -> None:
+    rows = [{"Ticker": t, "Name": r.name, "Type": r.kind.title() or "—", "Currency": r.currency or "—",
+             "History from": r.history.index[0], **{d: bool(v) for d, v in avail[t].items()}}
+            for t, r in raws.items()]
+    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch", column_config={
+        "History from": st.column_config.DateColumn(format="D MMM YYYY"),
+        **{d: st.column_config.CheckboxColumn(d, help=_DL_HELP[d]) for d in download.DATASETS},
+    })
+
+
+def _dl_datasets(any_avail: dict[str, bool]) -> list[str]:
+    """One tick box per dataset; a dataset no selected ticker has is greyed out and unticked, and ticked again when a
+    ticker that has it is selected."""
+    picked = []
+    for col, name in zip(st.columns(len(download.DATASETS)), download.DATASETS):
+        key, greyed = f"dl_ds_{name}", f"_dl_ds_greyed_{name}"
+        if not any_avail[name]:
+            st.session_state[key], st.session_state[greyed] = False, True
+        elif st.session_state.pop(greyed, False):
+            st.session_state[key] = True
+        else:
+            st.session_state.setdefault(key, True)
+        tip = _DL_HELP[name] if any_avail[name] else f"None of the selected tickers has {name.lower()} data."
+        with col:
+            if st.checkbox(name, key=key, disabled=not any_avail[name], help=tip):
+                picked.append(name)
+    return picked
+
+
+def _dl_timeframe(interval: str) -> str:
+    options = download.timeframes_for(interval)
+    if st.session_state.get("dl_timeframe") not in options:
+        default = DOWNLOAD_DEFAULTS["timeframe"]
+        st.session_state["dl_timeframe"] = default if default in options else options[0]
+    return st.segmented_control("Timeframe", options, key="dl_timeframe", required=True,
+                                help="Ends on the latest close. Weekly and monthly bars hide timeframes that would "
+                                     "give only a few rows.")
+
+
+def _dl_file_name(tickers: list[str], interval: str, timeframe: str, end: pd.Timestamp) -> str:
+    name = "_".join(tickers) if len(tickers) <= 3 else f"{len(tickers)}_tickers"
+    return f"{data._safe_name(name)}_{interval.lower()}_{timeframe}_{end:%Y%m%d}.csv"
+
+
+def _dl_footer(raws: dict[str, download.Raw], picked: list[str], adjusted: bool, interval: str,
+               asof: pd.Timestamp | None) -> None:
+    theme.panel_footer("Yahoo Finance via yfinance; forward 12M EPS and P/E computed here", interval, asof,
+                       caveat="data © Yahoo, for personal research use. CSV: three header rows (Ticker, Dataset, "
+                              "Field), ISO dates, full precision, oldest first; read with pd.read_csv(f, "
+                              "header=[0, 1, 2], index_col=0, parse_dates=True).")
+    notes = []
+    if download.PRICE in picked:
+        notes.append("Prices: \"split-adj.\" is Yahoo's price adjusted for splits only; \"split + div adj.\" is also "
+                     "adjusted for dividends" + (" (open, high, low and close are scaled by adjusted close / close)"
+                                                 if adjusted else "") + ". "
+                     + ("Weekly and monthly bars are built from daily bars and dated on the period's last trading "
+                        "day. " if interval != "Daily" else "")
+                     + "Today's bar is left out until the session closes.")
+    if download.VALUATION in picked:
+        notes.append(f"Formula: {NTM_FORMULA}")
+        clash = [t for t, r in raws.items() if download.pe_currency_clash(r)]
+        if clash:
+            notes.append(f"Fwd 12M P/E is left empty for {', '.join(clash)}: Yahoo reports its EPS in a different "
+                         "currency from its price.")
+    if download.EARNINGS in picked or download.VALUATION in picked:
+        notes.append("Yahoo's reported EPS is usually adjusted (non-GAAP), so it can differ from GAAP EPS.")
+    for note in notes:
+        st.caption(note)
+
+
+def render_download_panel() -> None:
+    """Choose tickers, see what Yahoo has for each, pick datasets, interval, timeframe and adjustment, then preview
+    the raw table and download it as one CSV (download.py)."""
+    universe, notice = data.load_universe()
+    if notice:
+        st.warning(notice)
+    with st.container(border=True):
+        head = st.container()
+        tickers = _dl_tickers(universe)
+        if not tickers:
+            with head:
+                theme.panel_header(_DL_TITLE, "Yahoo Finance · daily, weekly or monthly")
+            st.info("Select at least one ticker.")
+            return
+        with st.spinner(f"Checking Yahoo Finance for {', '.join(tickers)}…"):
+            raws = data.load_download_raw(tickers, frozenset(universe["ticker"]))
+        for r in raws.values():
+            if r.error:
+                st.warning(r.error)
+        raws = {t: r for t, r in raws.items() if r.error is None}
+        if not raws:
+            with head:
+                theme.panel_header(_DL_TITLE, "Yahoo Finance · daily, weekly or monthly")
+            return
+        avail = {t: download.availability(r) for t, r in raws.items()}
+        st.markdown("**Available data**")
+        _dl_availability_table(raws, avail)
+
+        st.markdown("**Choose data**")
+        picked = _dl_datasets({d: any(a[d] for a in avail.values()) for d in download.DATASETS})
+        c1, c2, c3 = st.columns([1, 2, 1])
+        with c1:
+            st.session_state.setdefault("dl_interval", DOWNLOAD_DEFAULTS["interval"])
+            interval = st.segmented_control("Interval", tuple(download.INTERVALS), key="dl_interval", required=True)
+        with c2:
+            timeframe = _dl_timeframe(interval)
+        with c3:
+            adjusted = st.toggle("Adjust prices for dividends", key="dl_adjusted",
+                                 disabled=download.PRICE not in picked,
+                                 help="Off: prices adjusted for splits only, plus an Adj Close column. On: open, high, "
+                                      "low and close also adjusted for dividends (total-return prices).")
+
+        latest = max(r.history.index[-1] for r in raws.values())
+        start = download.start_date(timeframe, latest)
+        tables = {t: download.ticker_tables(r, picked, interval, adjusted, start) for t, r in raws.items()}
+        table = download.combine(tables)
+        lacking = {t: [d for d in picked if not avail[t][d]] for t in raws}
+        none_in_window = {t: [d for d in picked if avail[t][d] and d not in tables[t]] for t in raws}
+        with head:
+            theme.panel_header(_DL_TITLE, f"Yahoo Finance · {interval.lower()} · units in each column header",
+                               summarise_download(table, lacking, none_in_window) if picked else "")
+        if not picked:
+            st.info("Select at least one dataset.")
+        elif table.empty:
+            st.info("No rows in this timeframe. Choose a longer timeframe.")
+        else:
+            st.markdown("**Raw data**")
+            preview = download.flat_columns(table).sort_index(ascending=False)
+            if len(preview) > DOWNLOAD_PREVIEW_ROWS:
+                st.caption(f"Showing the latest {DOWNLOAD_PREVIEW_ROWS:,} of {len(preview):,} rows; the CSV has "
+                           "every row.")
+            st.dataframe(preview.head(DOWNLOAD_PREVIEW_ROWS).reset_index(), hide_index=True, width="stretch",
+                         height=420, column_config={"Date": st.column_config.DateColumn(format="D MMM YYYY",
+                                                                                        pinned=True)})
+            st.download_button("Download CSV", lambda: download.to_csv(table), type="primary",
+                               icon=":material/download:", mime="text/csv", on_click="ignore",
+                               file_name=_dl_file_name(list(raws), interval, timeframe, latest))
+        _dl_footer(raws, picked, adjusted, interval, latest)
+
+# --- FRED download page (DESIGN.md 14, 2026-10-17) -----------------------------------------------------------------
+FRED_DL_MAX_SERIES = 10
+FRED_DL_DEFAULTS = {"series": "DGS10", "transforms": ["lin"], "frequency": "As published", "aggregation": "Average",
+                    "timeframe": "10Y"}
+_FRED_DL_TITLE = "FRED download"
+_FRED_ID_CHARS = set("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.")
+
+
+def _fred_label(sid: str, title: str, freq: str | None = None, units: str | None = None) -> str:
+    extra = ", ".join(x for x in (freq, units) if x)
+    return f"{sid} — {title}" + (f" ({extra})" if extra else "")
+
+
+def _fred_dl_series(known: dict[str, str]) -> list[str]:
+    """Search box (FRED's most popular matches) feeding a series box that also lists the app's own series; any FRED
+    series id can be typed in. Returns the chosen ids."""
+    ticker_of = {_fred_label(sid, name): sid for sid, name in known.items()}
+    query = st.text_input("Search FRED", key="fdl_query", placeholder="e.g. Singapore GDP, core PCE, mortgage rate",
+                          help="Lists FRED's most popular matching series in the series box below.")
+    if query.strip():
+        found, notice = data.fred_search(query)
+        if notice:
+            st.warning(notice)
+        elif found.empty:
+            st.caption(f"No FRED series match \"{query.strip()}\".")
+        else:
+            st.caption(f"{len(found)} matches for \"{query.strip()}\" added to the series box, most popular first.")
+        ticker_of = {**{_fred_label(sid, r["title"], r["frequency_short"], r["units_short"]): sid
+                        for sid, r in found.iterrows()}, **ticker_of}
+    if "fdl_series" not in st.session_state:
+        st.session_state["fdl_series"] = [label for label, sid in ticker_of.items()
+                                          if sid == FRED_DL_DEFAULTS["series"]]
+    options = list(dict.fromkeys([*ticker_of, *st.session_state["fdl_series"]]))  # keep picks from earlier searches
+    picked = st.multiselect("Series", options, key="fdl_series", max_selections=FRED_DL_MAX_SERIES,
+                            accept_new_options=True, placeholder="Series id or name",
+                            help=f"Search above, pick from the list, or type any FRED series id (e.g. CPIAUCSL). "
+                                 f"Up to {FRED_DL_MAX_SERIES}.")
+    ids = []
+    for text in picked:
+        sid = ticker_of.get(text) or str(text).split(" — ")[0].strip().upper()
+        if not sid or not set(sid) <= _FRED_ID_CHARS:
+            st.warning(f"\"{text}\" is not a valid FRED series id.")
+        elif sid not in ids:
+            ids.append(sid)
+    return ids
+
+
+def _fred_dl_info_table(infos: dict[str, dict]) -> None:
+    rows = [{"Series ID": sid, "Title": i["title"], "Frequency": i["frequency"], "Units": i["units"],
+             "Seasonal adj.": i["seasonal_adjustment_short"], "From": pd.Timestamp(i["observation_start"]),
+             "To": pd.Timestamp(i["observation_end"]), "Last updated": str(i["last_updated"])[:16]}
+            for sid, i in infos.items()]
+    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch", column_config={
+        "From": st.column_config.DateColumn(format="D MMM YYYY"),
+        "To": st.column_config.DateColumn(format="D MMM YYYY", help="Latest observation"),
+        "Last updated": st.column_config.TextColumn(help="When FRED last revised the series (US Central time)"),
+    })
+    with st.expander("Series notes (from FRED)"):
+        for sid, i in infos.items():
+            st.markdown(f"**{sid}: {i['title']}**")
+            st.caption(i.get("notes") or "No notes.")
+
+
+def _fred_dl_choice(key: str, label: str, options: list[str], default: str, **kwargs) -> str:
+    """Segmented control whose options depend on other choices: falls back to `default` (or the first option) when
+    the held value is no longer offered."""
+    if st.session_state.get(key) not in options:
+        st.session_state[key] = default if default in options else options[0]
+    return st.segmented_control(label, options, key=key, required=True, **kwargs)
+
+
+def _fred_dl_footer(frequency: str, asof: pd.Timestamp | None) -> None:
+    theme.panel_footer("FRED, Federal Reserve Bank of St. Louis", frequency, asof,
+                       caveat="each series' original source (e.g. BLS, BEA, ICE BofA) holds its copyright; for "
+                              "personal research use. CSV: three header rows (Series ID, Title, Field), ISO dates, "
+                              "full precision, oldest first; read with pd.read_csv(f, header=[0, 1, 2], index_col=0, "
+                              "parse_dates=True).")
+    st.caption("Dates follow FRED: weekly values are dated on the week's end day; monthly, quarterly and annual values "
+               "on the first day of the period. Values are the latest revised data (current vintage), not what was "
+               "known on each date. Transforms and frequency conversion are computed by FRED; after conversion the "
+               "current period can be empty or cover only part of the period.")
+
+
+def render_fred_download_panel(known: dict[str, str]) -> None:
+    """Choose FRED series, see their metadata, pick transforms, frequency and timeframe, then preview the raw table
+    and download it as one CSV. `known`: {series id: name} of the app's own series, offered before any search."""
+    with st.container(border=True):
+        head = st.container()
+        ids = _fred_dl_series(known)
+        if not ids:
+            with head:
+                theme.panel_header(_FRED_DL_TITLE, "FRED · as published or converted to a lower frequency")
+            st.info("Select at least one series.")
+            return
+        infos = {}
+        with st.spinner(f"Checking FRED for {', '.join(ids)}…"):
+            for sid in ids:
+                info, notice = data.fred_series_info(sid)
+                if notice:
+                    st.warning(notice)
+                else:
+                    infos[info["id"]] = info
+        if not infos:
+            with head:
+                theme.panel_header(_FRED_DL_TITLE, "FRED · as published or converted to a lower frequency")
+            return
+        st.markdown("**Available data**")
+        _fred_dl_info_table(infos)
+
+        st.markdown("**Choose data**")
+        st.session_state.setdefault("fdl_transforms", FRED_DL_DEFAULTS["transforms"])
+        transforms = st.pills("Transform", data.FRED_UNITS, selection_mode="multi", key="fdl_transforms",
+                              format_func=lambda u: data.FRED_UNITS_LABEL[u],
+                              help="Computed by FRED. Each transform is one column per series.")
+        native = [i["frequency_short"] for i in infos.values()]
+        c1, c2, c3 = st.columns([2, 1, 2])
+        with c1:
+            frequency = _fred_dl_choice("fdl_frequency", "Frequency", download.fred_frequencies(native),
+                                        FRED_DL_DEFAULTS["frequency"],
+                                        help="FRED converts only to a lower frequency, so options start at the "
+                                             "lowest frequency among the selected series.")
+        with c2:
+            aggregation = _fred_dl_choice("fdl_aggregation", "Aggregation", list(download.FRED_AGGS),
+                                          FRED_DL_DEFAULTS["aggregation"], disabled=frequency == "As published",
+                                          help="How FRED turns the observations in each period into one value.")
+        with c3:
+            timeframe = _fred_dl_choice("fdl_timeframe", "Timeframe", download.fred_timeframes(native, frequency),
+                                        FRED_DL_DEFAULTS["timeframe"], help="Ends on the latest observation.")
+        if not transforms:
+            with head:
+                theme.panel_header(_FRED_DL_TITLE, "FRED · units in each column header")
+            st.info("Select at least one transform.")
+            _fred_dl_footer(frequency, None)
+            return
+
+        freq_code = download.FRED_FREQS[frequency]
+        agg_code = download.FRED_AGGS[aggregation] if freq_code else None
+        requests_ = [(sid, u, freq_code, agg_code) for sid in infos for u in transforms]
+        with st.spinner(f"Loading {', '.join(infos)} from FRED…"):
+            fetched, notices = data.load_fred_download(requests_)
+        _warn_all(notices)
+        series = {(sid, u): s for (sid, u, _, _), s in fetched.items()}
+        fields = {(sid, u): download.fred_field(data.FRED_UNITS_LABEL[u], infos[sid]["units"], u, frequency,
+                                                aggregation) for sid, u in series}
+        latest = max((s.dropna().index.max() for s in series.values() if not s.dropna().empty), default=None)
+        start = download.start_date(timeframe, latest) if latest is not None else None
+        table = download.combine(download.fred_tables(series, {sid: i["title"] for sid, i in infos.items()}, fields,
+                                                      start), names=("Series ID", "Title", "Field"))
+        empty = [sid for sid in infos if sid not in table.columns.get_level_values(0)]
+        with head:
+            theme.panel_header(_FRED_DL_TITLE, f"FRED · {frequency.lower()} · units in each column header",
+                               summarise_fred_download(table, len(transforms), empty))
+        if table.empty:
+            st.info("No observations in this timeframe. Choose a longer timeframe.")
+        else:
+            st.markdown("**Raw data**")
+            preview = download.flat_columns(table).sort_index(ascending=False)
+            if len(preview) > DOWNLOAD_PREVIEW_ROWS:
+                st.caption(f"Showing the latest {DOWNLOAD_PREVIEW_ROWS:,} of {len(preview):,} rows; the CSV has "
+                           "every row.")
+            st.dataframe(preview.head(DOWNLOAD_PREVIEW_ROWS).reset_index(), hide_index=True, width="stretch",
+                         height=420, column_config={"Date": st.column_config.DateColumn(format="D MMM YYYY",
+                                                                                        pinned=True)})
+            st.download_button("Download CSV", lambda: download.to_csv(table), type="primary",
+                               icon=":material/download:", mime="text/csv", on_click="ignore",
+                               file_name=_dl_file_name(list(infos), f"fred_{frequency.lower().replace(' ', '-')}",
+                                                       timeframe, latest))
+        _fred_dl_footer(frequency, latest)

@@ -25,6 +25,7 @@ from fredapi import Fred
 
 import cape
 import countries
+import download
 import valuation
 
 log = logging.getLogger(__name__)
@@ -1151,6 +1152,173 @@ def load_shiller() -> tuple[pd.DataFrame, str | None]:
         return pd.DataFrame(), f"Shiller data in cache/{SHILLER_FILE.name} could not be read ({exc})."
 
 
+# --- Data download page --------------------------------------------------------------------------------------------
+# Everything a ticker has is fetched once (one probe = the download), kept in process memory for a day, and sliced
+# by `download.py`, so changing the interval, timeframe or adjustment never calls Yahoo again. Not saved to disk:
+# these are arbitrary user tickers, not the app's own databases. Failures are kept for 15 minutes only.
+DOWNLOAD_MAX_AGE = dt.timedelta(days=1)
+_DOWNLOAD_RETRY = dt.timedelta(minutes=15)
+_DOWNLOAD_WORKERS = 4
+_DL_RAW: dict[str, tuple[dt.datetime, download.Raw]] = {}
+_dl_lock = threading.Lock()
+
+
+def _fetch_download_raw(ticker: str, sp500: frozenset[str]) -> download.Raw:
+    t = yf.Ticker(ticker)
+    raw = download.Raw(ticker, gap_days=valuation._GAP_DAYS if ticker in sp500 else valuation.WIDE_GAP_DAYS)
+    try:
+        h = t.history(period="max", interval="1d", auto_adjust=False, actions=True, raise_errors=True)
+    except Exception as exc:
+        log.warning("Download history failed for %s: %s", ticker, exc)
+        raw.error = f"Yahoo Finance has no data for {ticker}."
+        return raw
+    if h.empty:
+        raw.error = f"Yahoo Finance has no data for {ticker}."
+        return raw
+    h.index = h.index.tz_localize(None).normalize() if h.index.tz is not None else h.index.normalize()
+    h = h[~h.index.duplicated(keep="last")]
+    meta = t.history_metadata or {}
+    # Yahoo's "Close" for today is the running price until the session ends; drop that unfinished bar (as for the
+    # app's own price files). Crypto's session is the UTC day, so its bar for today is always dropped.
+    session_end = ((meta.get("currentTradingPeriod") or {}).get("regular") or {}).get("end")
+    if isinstance(session_end, pd.Timestamp) and pd.Timestamp.now(tz=session_end.tz) < session_end:
+        h = h[h.index < session_end.tz_localize(None).normalize()]
+    h["Volume"] = h["Volume"].round().astype("Int64")
+    raw.history = h
+    raw.name = meta.get("longName") or meta.get("shortName") or ticker
+    raw.kind = meta.get("instrumentType") or ""
+    raw.currency = meta.get("currency")
+    raw.major_currency, raw.units_per_major = major_currency(raw.currency)
+    if raw.kind not in ("EQUITY", ""):
+        return raw   # funds, indices, FX, crypto and futures have no earnings or valuation measures
+    try:
+        e = t.get_earnings_dates(limit=100)
+        if e is not None and not e.empty:
+            e = e.sort_index()
+            e.index = e.index.tz_localize(None).normalize()  # report date in the exchange's own time zone
+            raw.lag_days = _report_lag_days(t, e.index)
+            raw.earnings = e
+            est = t.earnings_estimate
+            if est is not None and not est.empty:
+                raw.estimates = {k: float(est.loc[k, "avg"]) for k in _EPS_ESTIMATE_KEYS
+                                 if k in est.index and pd.notna(est.loc[k, "avg"])}
+                if "currency" in est:
+                    raw.eps_currency = est["currency"].dropna().iloc[0] if est["currency"].notna().any() else None
+    except Exception as exc:
+        log.warning("Download earnings failed for %s: %s", ticker, exc)
+    if raw.eps_currency is None and not raw.earnings.empty:
+        raw.eps_currency = raw.major_currency
+    try:
+        v = t.get_valuation_measures(freq="monthly", periods=60)
+        if v is not None and not v.empty:
+            today = pd.Timestamp.now().normalize()
+            v = v.T
+            v.index = [today if c == "Current" else pd.to_datetime(c, format="%m/%d/%Y") for c in v.index]
+            raw.measures = v.sort_index()
+    except Exception as exc:
+        log.warning("Download valuation failed for %s: %s", ticker, exc)
+    return raw
+
+
+def load_download_raw(tickers: list[str], sp500: frozenset[str]) -> dict[str, download.Raw]:
+    """Raw Yahoo data for each ticker, fetched in parallel where not held already (DOWNLOAD_MAX_AGE). Never raises:
+    a ticker that fails has `error` set."""
+    now = dt.datetime.now()
+    with _dl_lock:
+        held = {t: v for t, (at, v) in _DL_RAW.items()
+                if now - at <= (DOWNLOAD_MAX_AGE if v.error is None else _DOWNLOAD_RETRY)}
+    missing = [t for t in tickers if t not in held]
+    if missing:
+        with ThreadPoolExecutor(max_workers=_DOWNLOAD_WORKERS) as pool:
+            fetched = dict(zip(missing, pool.map(lambda t: _fetch_download_raw(t, sp500), missing)))
+        with _dl_lock:
+            for t, raw in fetched.items():
+                _DL_RAW[t] = (now, raw)
+        held.update(fetched)
+    return {t: held[t] for t in tickers}
+
+
+# --- FRED download page --------------------------------------------------------------------------------------------
+# Metadata and search are cached per call (failures are not: cache_data does not keep exceptions). Observations are
+# full histories, one request per (series, transform, frequency, aggregation), fetched in parallel and held in
+# process memory for an hour; timeframes are cut locally, so changing one never calls FRED again.
+_FRED_WORKERS = 4                       # FRED allows 120 requests a minute per key
+_FRED_OBS: dict[tuple[str, str, str | None, str | None], tuple[dt.datetime, pd.Series]] = {}
+_fred_lock = threading.Lock()
+
+
+@st.cache_data(ttl=3600)
+def _fred_info_cached(series_id: str) -> dict:
+    info = _fred().get_series_info(series_id)
+    return {k: info.get(k) for k in ("id", "title", "frequency", "frequency_short", "units", "units_short",
+                                     "seasonal_adjustment_short", "observation_start", "observation_end",
+                                     "last_updated", "notes")}
+
+
+def fred_series_info(series_id: str) -> tuple[dict | None, str | None]:
+    """FRED metadata for one series, or (None, a one-line message) when it does not exist or the call failed."""
+    try:
+        return _fred_info_cached(series_id), None
+    except ValueError as exc:
+        if "does not exist" in str(exc):
+            return None, f"FRED has no series {series_id}."
+        log.warning("FRED metadata failed for %s: %s", series_id, exc)
+    except Exception as exc:
+        log.warning("FRED metadata failed for %s: %s", series_id, exc)
+    return None, f"FRED did not answer for {series_id}; try again in a minute."
+
+
+@st.cache_data(ttl=3600)
+def _fred_search_cached(text: str, limit: int) -> pd.DataFrame:
+    found = _fred().search(text, limit=limit, order_by="popularity", sort_order="desc")
+    if found is None or found.empty:
+        return pd.DataFrame(columns=["title", "frequency_short", "units_short"])
+    return found[["title", "frequency_short", "units_short"]]
+
+
+def fred_search(text: str, limit: int = 25) -> tuple[pd.DataFrame, str | None]:
+    """Most popular FRED series matching `text` (index = series id). Never raises."""
+    try:
+        return _fred_search_cached(text.strip(), limit), None
+    except Exception as exc:
+        log.warning("FRED search failed for %r: %s", text, exc)
+        return pd.DataFrame(columns=["title", "frequency_short", "units_short"]), "FRED search failed; try again."
+
+
+def load_fred_download(requests_: list[tuple[str, str, str | None, str | None]]) -> tuple[dict, list[str]]:
+    """Full observation history for each (series id, transform, frequency code, aggregation code), in parallel where
+    not held already. Returns ({request: series}, notices); a failed request is left out with a notice."""
+    now = dt.datetime.now()
+    with _fred_lock:
+        held = {k: s for k, (at, s) in _FRED_OBS.items() if now - at <= dt.timedelta(hours=1)}
+    missing = [r for r in requests_ if r not in held]
+    notices = []
+    if missing:
+        fred = _fred()
+
+        def fetch(req):
+            sid, units, freq, agg = req
+            kwargs = {"units": units}
+            if freq:
+                kwargs.update(frequency=freq, aggregation_method=agg)
+            try:
+                return req, fred.get_series(sid, **kwargs).astype(float), None
+            except Exception as exc:
+                log.warning("FRED download failed for %s: %s", req, exc)
+                return req, None, f"Fetch failed for {sid} ({FRED_UNITS_LABEL[units].lower()}): {exc}".strip()
+
+        with ThreadPoolExecutor(max_workers=_FRED_WORKERS) as pool:
+            results = list(pool.map(fetch, missing))
+        with _fred_lock:
+            for req, s, notice in results:
+                if s is not None:
+                    _FRED_OBS[req] = (now, s)
+                    held[req] = s
+                else:
+                    notices.append(notice)
+    return {r: held[r] for r in requests_ if r in held}, notices
+
+
 @st.cache_data(ttl=3600)
 def refreshed_at() -> pd.Timestamp:
     """SGT wall-clock time this cache generation was created; resets when the cache is cleared."""
@@ -1162,6 +1330,10 @@ def refresh() -> None:
     _price_state["force"] = True  # the next price load re-downloads, whatever the age of the saved files
     _index_state["force"] = True
     _custom_state["force"] = True
+    with _dl_lock:
+        _DL_RAW.clear()
+    with _fred_lock:
+        _FRED_OBS.clear()
 
 
 def moving_average(data: pd.Series, window: int) -> pd.Series:

@@ -214,6 +214,48 @@ st.markdown(
     "counts weekly."
 )
 
+st.subheader("Yahoo Finance download page", anchor=False)
+st.markdown(
+    "Password-protected. Any Yahoo Finance ticker (up to "
+    f"{panels.DOWNLOAD_MAX_TICKERS}) is checked once for what Yahoo holds, and the page offers only the datasets "
+    "at least one ticker has. Everything a ticker has is fetched in one go and held in memory for a day, so changing "
+    "the interval, timeframe or adjustment does not call Yahoo again. Downloaded tickers are not added to the app's "
+    "saved tickers.\n"
+    "- **Prices.** Daily bars from Yahoo; weekly and monthly bars are built from them (first open, highest high, "
+    "lowest low, last close, summed volume) and dated on the period's last trading day. \"Split-adj.\" is Yahoo's "
+    "close, adjusted for splits only; \"split + div adj.\" also adjusts for dividends. Today's bar is left out until "
+    "the session closes.\n"
+    "- **Dividends and splits** on their ex-dates, as Yahoo lists them (dividends adjusted for later splits).\n"
+    "- **Earnings.** Yahoo's last 100 report dates with consensus EPS estimate, reported EPS and surprise %, "
+    "including the next scheduled report.\n"
+    "- **Valuation.** Yahoo's nine valuation measures for the last 15 month ends and today (Yahoo keeps no longer "
+    "history), plus a blended forward 12M EPS and P/E computed here on every price row, the same method as the "
+    "forward P/E panels above. P/E is left empty where Yahoo reports EPS in a different currency from the price.\n"
+    f"- **Formula.** {panels.NTM_FORMULA}\n"
+    "- **File.** One CSV, three header rows (Ticker, Dataset, Field), one row per date, oldest first. Datasets have "
+    "different dates, so cells are empty where a dataset has nothing on that date."
+)
+
+st.subheader("FRED download page", anchor=False)
+st.markdown(
+    "Same password as the Yahoo Finance download. Search FRED (most popular matches first), pick from the "
+    "series this app charts, or type any FRED series id (up to "
+    f"{panels.FRED_DL_MAX_SERIES}). Each series' metadata (frequency, units, seasonal adjustment, first and "
+    "last observation, last revision, notes) is shown before anything is downloaded.\n"
+    "- **Transforms** (level, changes, % changes, log) are computed by FRED, one column per series and "
+    "transform.\n"
+    "- **Frequency.** As published, or converted by FRED to a lower frequency with average, sum or end-of-"
+    "period aggregation. FRED cannot convert to a higher frequency, so the options start at the lowest "
+    "frequency among the selected series, and timeframes too short for it are hidden. After conversion the "
+    "current period can be empty or cover only part of the period.\n"
+    "- **Dates and vintage.** FRED's own dates (monthly, quarterly and annual values on the first day of the "
+    "period) and the latest revised values, not what was known on each date. Full histories are fetched in "
+    "parallel and held for an hour; timeframes are cut locally.\n"
+    "- **File.** One CSV, three header rows (Series ID, Title, Field), one row per date, oldest first; units, "
+    "transform and any frequency conversion are in each field name. Each series' original source holds its "
+    "copyright (e.g. ICE BofA)."
+)
+
 st.subheader("Shiller CAPE and expected 10-year return, TAA page", anchor=False)
 st.markdown(
     "Source: Robert J. Shiller's *Irrational Exuberance* data (shillerdata.com), monthly from 1871, saved as "
